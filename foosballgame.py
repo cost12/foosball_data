@@ -1,6 +1,6 @@
 import matchup
 
-from datetime import datetime, timedelta
+import datetime
 import pandas as pd
 import math
 import random
@@ -47,7 +47,7 @@ class FoosballGame:
 		                                                          self.loser, \
 		                                                          self.loser_score,  \
 		                                                          '(' + str(self.number), \
-		                                                          str(self.date.date().strftime("%m/%d/%Y")), \
+		                                                          str(self.date.strftime("%m/%d/%Y")), \
 		                                                          self.winner_color)
 
 	def __str__(self):
@@ -56,7 +56,7 @@ class FoosballGame:
 		                                                          self.loser, \
 		                                                          self.loser_score,  \
 		                                                          '(' + str(self.number), \
-		                                                          str(self.date.date().strftime("%m/%d/%Y")), \
+		                                                          str(self.date.strftime("%m/%d/%Y")), \
 		                                                          self.winner_color)
 
 def get_record(games, p1, color='ANY'):
@@ -287,8 +287,8 @@ def select_games(games, predicate):
 	return selected
 
 def get_date_range(games):
-	min_date = datetime(9000, 1, 1)
-	max_date = datetime(2000, 1, 1)
+	min_date = datetime.date(9000, 1, 1)
+	max_date = datetime.date(2000, 1, 1)
 	for game in games:
 		if game.date < min_date:
 			min_date = game.date
@@ -412,8 +412,8 @@ class FoosballPredicate:
 		self.number_min = 0
 		self.number_max = 999999
 
-		self.date_min = datetime(2000, 1, 1)
-		self.date_max = datetime(9000, 1, 1)
+		self.date_min = datetime.date(2000, 1, 1)
+		self.date_max = datetime.date(9000, 1, 1)
 
 	def get_predicate(self):
 		return lambda game : self.predicate(game)
@@ -427,7 +427,7 @@ class FoosballPredicate:
 		print("Lose score from: " + str(self.lose_score_min) + " to " + str(self.lose_score_max))
 		print("Winner color: " + str(self.winner_color))
 		print("Number from: " + str(self.number_min) + " to " + str(self.number_max))
-		print("Date from: " + str(self.date_min.date()) + " to " + str(self.date_max.date()))
+		print("Date from: " + str(self.date_min) + " to " + str(self.date_max))
 
 	def predicate(self, game):
 		return ((game.winner in self.winners or "ANY" in self.winners) or \
