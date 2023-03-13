@@ -45,8 +45,8 @@ def get_colley_rankings(games, by_wins = True, weighting = None):
 	np.fill_diagonal(c, diag)
 
 	for i in range(0,len(b)):
-	    b[i] = b[i] / 2
-	    b[i] += 1
+		b[i] = b[i] / 2
+		b[i] += 1
 
 	r = np.linalg.solve(c, b)
 
