@@ -15,10 +15,12 @@ def mainPrint(save_csv=False,use_csv=False):
 def mainVisualize(save_csv=False,use_csv=False):
     if use_csv:
         games = data_read_in.read_in_games_from_csv()
+        dates = data_read_in.read_in_dates_from_csv()
     else:
         games = data_read_in.read_in_games_from_sheets(copy_to_csv=save_csv)
+        dates = data_read_in.read_in_dates_from_sheets(copy_to_csv=save_csv)
     if games is not None:
-        data_visualizer.visualize_foosball(games)
+        data_visualizer.visualize_foosball(games,dates)
 
 def main():
     to_run = 'vis'

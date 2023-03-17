@@ -339,8 +339,8 @@ def game_probability(games, game, or_less_likely_game=False,given_total_games_pl
 	return game_prob
 
 def goal_prob(games, p1, p2, p1color="ANY"):
-	p1_goals = 0
-	p2_goals = 0
+	p1_goals = 1
+	p2_goals = 1
 	for game in games:
 		if game.winner == p1 and game.loser == p2 and (p1color=="ANY" or p1color == game.winner_color):
 			p1_goals += game.winner_score
@@ -354,7 +354,7 @@ def goal_probs(games):
 	goals = get_goals_scored_for_all(games)
 	probs = {}
 	for player in goals.keys():
-		probs[player] = goals[player][0]/float(goals[player][0]+goals[player][1])
+		probs[player] = (goals[player][0]+1)/float(goals[player][0]+goals[player][1]+2)
 	return probs
 
 def simulate_game(p1_prob, p1_score=0, p2_score=0, gameto=10):
@@ -372,6 +372,10 @@ def get_win_probability(games, p1, p2, p1color="ANY", p1score=0, p2score=0, game
 	return get_win_prob(p1_goal_prob, p1score,p2score,gameto)
 
 def get_win_prob(p1goalprob, p1score=0,p2score=0,gameto=10):
+	if p1score >= gameto:
+		return 1
+	if p2score >= gameto:
+		return 0
 	p2goalprob = 1 - p1goalprob
 	p1_left = gameto-p1score
 	p2_left = gameto-p2score
@@ -387,6 +391,20 @@ def get_win_probabilities(games, p1score=0,p2score=0,gameto=10):
 	for player in goal_probs.keys():
 		win_probs[player] = get_win_prob(goal_probs[player], p1score,p2score,gameto)
 	return win_probs
+
+def get_prob_of_score(goalprob,score,cur_score=0,opp_score=0,gameto=10):
+	if score < cur_score or score > gameto:
+		return 0.0
+	if score == gameto:
+		return get_win_prob(goalprob,cur_score,opp_score,gameto)
+	if opp_score == gameto:
+		return score == cur_score
+	to_go = score - cur_score
+	opp_to_go = gameto-opp_score
+	opp_goal_prob = 1-goalprob
+	prob = goalprob**to_go * opp_goal_prob**(opp_to_go-1) * math.comb(to_go+opp_to_go-1,to_go) * opp_goal_prob
+	return prob
+
 
 
 class FoosballPredicate:

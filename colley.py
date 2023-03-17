@@ -5,10 +5,58 @@ import foosballgame
 # if by_wins is false, ranking will be by score
 # optionally pass in weights for games
 def get_colley_rankings(games, by_wins = True, weighting = None):
+	players = list(foosballgame.get_player_range(games))
+	c,b = __get_matrices(games,players,by_wins,weighting)
+	by = 'W'
+	if not by_wins:
+		by = 'G'
+	return __calculate_values(c,b,players,by)
+
+def get_colley_from_df(df,by='W'):
+	players = list(df['Name'].unique())
+	print(players[0])
+	c,b = __matrices_from_df(df,by)
+	return __calculate_values(c,b,players,by)
+	
+def __calculate_values(c,b,players,by):
+	diag = c.diagonal() + 2
+	np.fill_diagonal(c, diag)
+
+	for i in range(0,len(b)):
+		b[i] = b[i] / 2
+		b[i] += 1
+
+	r = np.linalg.solve(c, b)
+
+	rankings = {}
+	for i in range(0,len(players)):
+		rankings[players[i]] = {'Name':players[i], str(by)+' RANK':r[i]}
+	return rankings
+
+def __matrices_from_df(df, players, by='W'):
+	num_players = len(players)
+	c = np.zeros([num_players, num_players])
+	b = np.zeros(num_players)
+	
+	for r in range(df.shape[0]):
+		name1 = df.iloc[r]['Name']
+		name2 = df.iloc[r]['Opponent']
+		val = df.iloc[r][by]
+		print(name1)
+		index1 = players.index(name1)
+		index2 = players.index(name2)
+		c[index1][index1] += val
+		c[index2][index2] += val
+		c[index1][index2] -= val
+		c[index2][index1] -= val
+		b[index1] += val
+		b[index2] -= val
+	return c,b
+
+
+def __get_matrices(games, players, by_wins = True, weighting = None):
 	if weighting == None:
 		weighting = np.ones(len(games))
-
-	players = list(foosballgame.get_player_range(games))
 
 	num_players = len(players)
 	c = np.zeros([num_players, num_players])
@@ -40,20 +88,7 @@ def get_colley_rankings(games, by_wins = True, weighting = None):
 			b[w_index] -= (l_score) * weighting[i]
 			b[l_index] += (l_score) * weighting[i]
 		i += 1
-
-	diag = c.diagonal() + 2
-	np.fill_diagonal(c, diag)
-
-	for i in range(0,len(b)):
-		b[i] = b[i] / 2
-		b[i] += 1
-
-	r = np.linalg.solve(c, b)
-
-	rankings = {}
-	for i in range(0,len(players)):
-		rankings[players[i]] = r[i]
-	return rankings
+	return c,b
 
 # give a weight to each game depending on how long ago it was
 # optionally take into account if players have played recently
