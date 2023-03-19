@@ -1,6 +1,5 @@
 from tkinter import *
 from tkinter import ttk
-import math
 
 import statcollector
 
@@ -10,342 +9,230 @@ def visualize_foosball(games,dates):
     root.columnconfigure(0,weight=1)
 
     stats = statcollector.StatCollector(games)
-
-    # sim setup
-    #sset_frm = ttk.Frame(root)
-    #sset_frm.grid(sticky='news')
-    #sim_setup = SimSetup(sset_frm,stats)
-
-    # sim display
-    sim_frm = ttk.Frame(root)
-    sim_frm.grid(sticky='news')
-    sim_view = SimView(sim_frm,stats)
-
-    # stat display
-    stat_frm = ttk.Frame(root)
-    stat_frm.grid(sticky='news')
-
-    stat_tbl = StatTable(stat_frm,stats)
-    stat_tbl.set_view('players')
-    stat_tbl.sort_by('W PCT',False)
-    
-    # view buttons
-    btn_frm = ttk.Frame(root)
-    btn_frm.grid(sticky='news')
-    c=0
-    for stat in stats.list_stats():
-        def change_view(view=stat):
-            return stat_tbl.set_view(view)
-        btn = ttk.Button(btn_frm, text=stat,command=change_view)
-        btn.grid(row=0,column=c,sticky='news')
-        c += 1
-
-    # semester buttons
-    sem_frm = ttk.Frame(root)
-    sem_frm.grid(sticky='news')
-    btn = ttk.Button(sem_frm, text='All Time',command=stat_tbl.reset_filter)
-    btn.grid(row=0,column=0,sticky='news')
-    c=0
-    for semester in dates:
-        def filter(date=semester):
-            return stat_tbl.filter_by_date(date)
-        btn = ttk.Button(sem_frm, text=semester.name,command=filter)
-        btn.grid(row=0,column=c+1,sticky='news')
-        c += 1
-    
-    views = {'stats':stat_tbl,'sim':sim_view} #, 'sim setup':sim_setup}
-
-    # screen buttons
-    scr_btn_frm = ttk.Frame(root)
-    scr_btn_frm.grid(sticky='news')
-    c=0
-    for scr in views.keys():
-        def change_view(v=scr):
-            for view in views:
-                views[view].destroy()
-            view = v
-            views[v].reload()
-        btn = ttk.Button(scr_btn_frm,text=scr,command=change_view)
-        btn.grid(row=0,column=c,sticky='news')
-        c += 1
+    viewControl = StatsViewControl(root,stats,dates)
 
     root.mainloop()
 
 
-class SimView:
+class StatsViewControl(ttk.Frame):
 
-    def __init__(self,frm,sc:statcollector.StatCollector,p1='',p2=''):
-        self.frm = frm
-        self.stats = sc
-        #self.sim_set = sim_set
+    def __init__(self,frm:ttk.Frame,stats:statcollector.StatCollector,dates):
+        super().__init__(frm)
+        self.frm=frm
 
-        self.labels = []
-        self.buttons = []
-        self.entries = []
+        self.stats = stats
+        self.dates = dates
+        self.view = str('table')
+        self.views = {'table':StatTable(frm,stats),'sim':SimView(frm,stats)}
 
-        self.player1=p1
-        self.player2=p2
-        self.set_simulator()
+        self.add_buttons()
 
-    def set_players(self):
-        if len(self.entries) > 1:
-            self.player1 = self.entries[0].get()
-            self.player2 = self.entries[1].get()
-        self.set_simulator()
+        self.views['table'].pack()
+        self.views['sim'].pack()
+        self.views['sim'].forget()
 
-    def set_simulator(self):
-        self.simulator = self.stats.get_simulator(self.player1,self.player2)
+    def add_buttons(self):
+        # view buttons
+        view_frm = ttk.Frame(self.frm)
+        view_frm.pack()
+        c=0
+        for view in self.views.keys():
+            def change_v(v=view):
+                self.change_view(v)
+            ttk.Button(view_frm,text=view,command=change_v).grid(row=0,column=c)
+            view_frm.columnconfigure(c,weight=1)
+            c+=1
 
-    def sim_goal(self):
-        self.simulator.simulate_goal()
-        self.__display()
-
-    def sim_game(self):
-        self.simulator.simulate_game()
-        self.__display()
-
-    def add_goal(self,player):
-        self.simulator.add_goal(player)
-        self.__display()
+        # semester buttons
+        filter_frm = ttk.Frame(self.frm)
+        filter_frm.pack()
+        filter_frm.columnconfigure(0,weight=1)
+        ttk.Button(filter_frm, text='All Time',command=self.views['table'].reset_filter).grid(row=0,column=0)
+        c=1
+        for semester in self.dates:
+            def filter(date=semester):
+                return self.views['table'].filter_by_date(date)
+            ttk.Button(filter_frm, text=semester.name,command=filter).grid(row=0,column=c)
+            filter_frm.columnconfigure(c,weight=1)
+            c+=1
 
     def reload(self):
-        self.set_players()
-        self.set_simulator()
-        self.__display()
+        self.views[self.view].reload()
 
-    def __display(self):
-        self.destroy()
+    def change_view(self,view:str) -> None:
+        if view in self.views and view != self.view:
+            self.views[self.view].forget()
+            self.view = view
+            #self.views[self.view].tkraise()
+            self.views[self.view].pack()
 
-        self.frm.columnconfigure(0,weight=5)
-        self.frm.columnconfigure(1,weight=1)
-        self.frm.columnconfigure(2,weight=5)
-        self.frm.rowconfigure(0,weight=2)
-        self.frm.rowconfigure(1,weight=1)
-        self.frm.rowconfigure(2,weight=2)
-        self.frm.rowconfigure(3,weight=1)
-        self.frm.rowconfigure(4,weight=1)
-        self.frm.rowconfigure(5,weight=1)
-        self.frm.rowconfigure(6,weight=1)
-        self.frm.rowconfigure(7,weight=1)
-        self.frm.rowconfigure(8,weight=1)
-        self.frm.rowconfigure(9,weight=1)
+    def repack(self):
+        self.views[self.view].pack()
 
+    #def add_view(self,name:str,view) -> None:
+    #    self.views[name] = view
+
+class SimView(ttk.Frame):
+
+    def __init__(self,frm:ttk.Frame,sc:statcollector.StatCollector,p1='',p2=''):
+        super().__init__(frm)
+        self.frm = frm
+        
+        self.stats = sc
+        self.player1=StringVar()
+        self.player2=StringVar()
+        self.set_simulator(init=True)
+
+        self.columnconfigure(0,weight=5)
+        self.columnconfigure(1,weight=1)
+        self.columnconfigure(2,weight=5)
+        self.rowconfigure(0,weight=2)
+        self.rowconfigure(1,weight=1)
+        self.rowconfigure(2,weight=2)
+        self.rowconfigure(3,weight=1)
+        self.rowconfigure(4,weight=1)
+        self.rowconfigure(5,weight=1)
+        self.rowconfigure(6,weight=1)
+        self.rowconfigure(7,weight=1)
+        self.rowconfigure(8,weight=1)
+        self.rowconfigure(9,weight=1)
+
+        # TODO: most of these 'variables' are None
         # top row
-        ent = ttk.Entry(self.frm)
-        ent.insert(0,self.player1)
-        ent.grid(row=0, column=0,sticky='news')
-        self.entries.append(ent)
-
-        btn = ttk.Button(self.frm, text='Reset', command=self.reload)
-        btn.grid(row=0, column=1,sticky='news')
-        self.buttons.append(btn)
-
-        ent = ttk.Entry(self.frm)
-        ent.insert(0,self.player2)
-        ent.grid(row=0, column=2,sticky='news')
-        self.entries.append(ent)
+        self.p1_ent = ttk.Entry(self,textvariable=self.player1)
+        self.p1_ent.grid(row=0, column=0,sticky='news')
+        self.p1_ent.insert(0,p1)
+        self.reset_btn = ttk.Button(self, text='Reset', command=self.reset).grid(row=0, column=1,sticky='news')
+        self.p2_ent = ttk.Entry(self,textvariable=self.player2)
+        self.p2_ent.grid(row=0, column=2,sticky='news')
+        self.p2_ent.insert(0,p2)
 
         # row 1
-        lbl = ttk.Label(self.frm, text='score:',anchor='e')
-        lbl.grid(row=1,column=0,sticky='news')
-        self.labels.append(lbl)
-
-        btn = ttk.Button(self.frm, text='Sim goal', command=self.sim_goal)
-        btn.grid(row=1, column=1,sticky='news')
-        self.buttons.append(btn)
-
-        lbl = ttk.Label(self.frm, text='score:')
-        lbl.grid(row=1,column=2,sticky='news')
-        self.labels.append(lbl)
+        self.score_lbl1 = ttk.Label(self, text='score:',anchor='e').grid(row=1,column=0,sticky='news')
+        self.sim_goal_btn = ttk.Button(self, text='Sim goal', command=self.sim_goal).grid(row=1, column=1,sticky='news')
+        self.score_lbl2 = ttk.Label(self, text='score:').grid(row=1,column=2,sticky='news')
 
         # row 2
-        lbl = ttk.Label(self.frm, text=self.simulator.sim_score1,anchor='e')
-        lbl.grid(row=2,column=0,sticky='news')
-        self.labels.append(lbl)
-
-        btn = ttk.Button(self.frm, text='Sim Game', command=self.sim_game)
-        btn.grid(row=2, column=1,sticky='news')
-        self.buttons.append(btn)
-
-        lbl = ttk.Label(self.frm, text=self.simulator.sim_score2)
-        lbl.grid(row=2,column=2,sticky='news')
-        self.labels.append(lbl)
+        self.score_num1 = ttk.Label(self, text=self.simulator.sim_score1,anchor='e')
+        self.score_num1.grid(row=2,column=0,sticky='news')
+        self.sim_game_btn = ttk.Button(self, text='Sim Game', command=self.sim_game).grid(row=2, column=1,sticky='news')
+        self.score_num2 = ttk.Label(self, text=self.simulator.sim_score2)
+        self.score_num2.grid(row=2,column=2,sticky='news')
 
         # row 3
-        lbl = ttk.Label(self.frm, text='win prob',anchor='e')
-        lbl.grid(row=3,column=0,sticky='news')
-        self.labels.append(lbl)
-
-        lbl = ttk.Label(self.frm, text='win prob')
-        lbl.grid(row=3,column=2,sticky='news')
-        self.labels.append(lbl)
+        self.win_prob_lbl1 = ttk.Label(self, text='win prob',anchor='e').grid(row=3,column=0,sticky='news')
+        self.win_prob_lbl2 = ttk.Label(self, text='win prob',anchor='w').grid(row=3,column=2,sticky='news')
 
         # row 4
         text = '{:>.3f}%'.format(self.simulator.get_p1_win_odds()*100)
-        lbl = ttk.Label(self.frm, text=text,anchor='e')
-        lbl.grid(row=4,column=0,sticky='news')
-        self.labels.append(lbl)
-
+        self.win_prob_num1 = ttk.Label(self, text=text,anchor='e')
+        self.win_prob_num1.grid(row=4,column=0,sticky='news')
         text = '{:>.3f}%'.format((1-self.simulator.get_p1_win_odds())*100)
-        lbl = ttk.Label(self.frm, text=text)
-        lbl.grid(row=4,column=2,sticky='news')
-        self.labels.append(lbl)
+        self.win_prob_num2 = ttk.Label(self, text=text)
+        self.win_prob_num2.grid(row=4,column=2,sticky='news')
 
         # row 5
-        lbl = ttk.Label(self.frm, text='exp score',anchor='e')
-        lbl.grid(row=5,column=0,sticky='news')
-        self.labels.append(lbl)
-
-        lbl = ttk.Label(self.frm, text='exp score')
-        lbl.grid(row=5,column=2,sticky='news')
-        self.labels.append(lbl)
+        self.exp_score_lbl1 = ttk.Label(self, text='exp score',anchor='e').grid(row=5,column=0,sticky='news')
+        self.exp_score_lbl2 = ttk.Label(self, text='exp score',anchor='w').grid(row=5,column=2,sticky='news')
 
         # row 6
         text = '{:>.3f}'.format(self.simulator.get_expected_score(self.simulator.player1))
-        lbl = ttk.Label(self.frm, text=text,anchor='e')
-        lbl.grid(row=6,column=0,sticky='news')
-        self.labels.append(lbl)
-
+        self.exp_score_num1 = ttk.Label(self, text=text,anchor='e')
+        self.exp_score_num1.grid(row=6,column=0,sticky='news')
         text = '{:>.3f}'.format(self.simulator.get_expected_score(self.simulator.player2))
-        lbl = ttk.Label(self.frm, text=text)
-        lbl.grid(row=6,column=2,sticky='news')
-        self.labels.append(lbl)
+        self.exp_score_num2 = ttk.Label(self, text=text)
+        self.exp_score_num2.grid(row=6,column=2,sticky='news')
 
         # row 7
-        lbl = ttk.Label(self.frm, text='prob score',anchor='e')
-        lbl.grid(row=7,column=0,sticky='news')
-        self.labels.append(lbl)
-
-        lbl = ttk.Label(self.frm, text='prob score')
-        lbl.grid(row=7,column=2,sticky='news')
-        self.labels.append(lbl)
+        self.prob_score_lbl1 = ttk.Label(self, text='prob score',anchor='e').grid(row=7,column=0,sticky='news')
+        self.prob_score_lbl2 = ttk.Label(self, text='prob score',anchor='w').grid(row=7,column=2,sticky='news')
 
         # row 8
-        lbl = ttk.Label(self.frm, text=self.simulator.get_most_probable_score(self.simulator.player1),anchor='e')
-        lbl.grid(row=8,column=0,sticky='news')
-        self.labels.append(lbl)
-
-        lbl = ttk.Label(self.frm, text=self.simulator.get_most_probable_score(self.simulator.player2))
-        lbl.grid(row=8,column=2,sticky='news')
-        self.labels.append(lbl)
+        self.prob_score_num1 = ttk.Label(self, text=self.simulator.get_most_probable_score(self.simulator.player1),anchor='e')
+        self.prob_score_num1.grid(row=8,column=0,sticky='news')
+        self.prob_score_num2 = ttk.Label(self, text=self.simulator.get_most_probable_score(self.simulator.player2),anchor='w')
+        self.prob_score_num2.grid(row=8,column=2,sticky='news')
 
         # row 9
-        btn = ttk.Button(self.frm, text='Add Goal', command=lambda : self.add_goal(self.simulator.player1))
-        btn.grid(row=9,column=0,sticky='news')
-        self.buttons.append(btn)
+        self.add_goal_btn1 = ttk.Button(self, text='Add Goal', command=lambda : self.add_goal(self.simulator.player1)).grid(row=9,column=0,sticky='news')
+        self.add_goal_btn2 = ttk.Button(self, text='Add Goal', command=lambda : self.add_goal(self.simulator.player2)).grid(row=9,column=2,sticky='news')
+    
+        
+    def reload(self):
+        self.destroy()
+        self.__init__(self.frm,self.sc,self.player1.get(),self.player2.get())
+        self.pack()
 
-        btn = ttk.Button(self.frm, text='Add Goal', command=lambda : self.add_goal(self.simulator.player2))
-        btn.grid(row=9,column=2,sticky='news')
-        self.buttons.append(btn)
+    def reset(self):
+        self.set_simulator()
 
-    def destroy(self):
-        for lbl in self.labels:
-            lbl.destroy()
-        self.labels = []
-        for btn in self.buttons:
-            btn.destroy()
-        self.buttons = []
-        for ent in self.entries:
-            ent.destroy()
-        self.entries = []
+    def set_simulator(self,init=False):
+        self.simulator = self.stats.get_simulator(self.player1.get(),self.player2.get())
+        if not init:
+            self.update_labels()
 
-class SimSetup:
+    def sim_goal(self):
+        self.simulator.simulate_goal()
+        self.update_labels()
 
-    def __init__(self,frm,sc):
+    def sim_game(self):
+        self.simulator.simulate_game()
+        self.update_labels()
+
+    def add_goal(self,player):
+        self.simulator.add_goal(player)
+        self.update_labels()
+
+    def update_labels(self):
+        self.score_num1.config(text=self.simulator.sim_score1)
+        self.score_num2.config(text=self.simulator.sim_score2)
+        text = '{:>.3f}%'.format(self.simulator.get_p1_win_odds()*100)
+        self.win_prob_num1.config(text=text)
+        text = '{:>.3f}%'.format((1-self.simulator.get_p1_win_odds())*100)
+        self.win_prob_num2.config(text=text)
+        text = '{:>.3f}'.format(self.simulator.get_expected_score(self.simulator.player1))
+        self.exp_score_num1.config(text=text)
+        text = '{:>.3f}'.format(self.simulator.get_expected_score(self.simulator.player2))
+        self.exp_score_num2.config(text=text)
+        self.prob_score_num1.config(text=self.simulator.get_most_probable_score(self.simulator.player1))
+        self.prob_score_num2.config(text=self.simulator.get_most_probable_score(self.simulator.player2))
+
+
+class StatTable(ttk.Frame):
+
+    def __init__(self, frm:ttk.Frame, sc:statcollector.StatCollector, rmax=30,filtered=None,sort=['W PCT'],asc=False,view='players'):
+        super().__init__(frm)
+        
         self.frm = frm
         self.stats = sc
-
-        self.labels = []
-        self.entries = []
-
-        self.p1_selected=''
-        self.p2_selected=''
-
-    def reload(self):
-        self.__display()
-
-    def __display(self):
-        self.destroy()
-
-        self.frm.columnconfigure(0,weight=1)
-        self.frm.columnconfigure(1,weight=1)
-        self.frm.rowconfigure(0,weight=1)
-        self.frm.rowconfigure(1,weight=1)
-
-        lbl = ttk.Label(self.frm, text='Player 1', anchor='e')
-        lbl.grid(row=0, column=0,sticky='news')
-        self.labels.append(lbl)
-
-        lbl = ttk.Label(self.frm, text='Player 2', anchor='e')
-        lbl.grid(row=0, column=1,sticky='news')
-        self.labels.append(lbl)
-
-        ent = ttk.Entry(self.frm)
-        ent.grid(row=1,column=0,sticky='news')
-        self.entries.append(ent)
-
-        ent = ttk.Entry(self.frm)
-        ent.grid(row=1,column=1,sticky='news')
-        self.entries.append(ent)
-
-    def destroy(self):
-        if len(self.entries) > 1:
-            self.player1 = self.entries[0].get()
-            self.player2 = self.entries[1].get()
-        for lbl in self.labels:
-            lbl.destroy()
-        self.labels = []
-        for ent in self.entries:
-            ent.destroy()
-        self.entries = []
-
-class StatTable:
-
-    def __init__(self, frm, sc, rmax=30):
-        self.stat_frm = frm
-        self.stats = sc
-        self.filtered_stats = self.stats
-        self.sort = []
-        self.ascending = True
-        self.view = None
-        self.labels = []
-        self.buttons = []
+        if filtered is None:
+            self.filtered_stats = self.stats
+        else:
+            self.filtered_stats = filtered
+        self.sort = sort
+        self.ascending = asc
+        self.view = view
         self.rmax = rmax
         
-        self.color = 'black'
         self.highlight = 'white'
-        self.font  = 'arial'
         self.background = 'gray'
-        self.font_size = 16
-        self.width = 10
-        self.relief = 'ridge'
 
-    def reload(self):
-        self.__display()
-
-    def __display(self):
-        self.destroy()
         data = self.get_data()
 
-        self.stat_frm.columnconfigure(0,weight=1)
-        self.stat_frm.rowconfigure(0,weight=1)
+        self.columnconfigure(0,weight=1)
+        self.rowconfigure(0,weight=1)
         # headers
         for c in range(len(data.columns)):
-            self.stat_frm.columnconfigure(c+1,weight=1) # for filling vertically
+            self.columnconfigure(c+1,weight=1) # for filling vertically
             header = data.columns[c]
-            #btn = ttk.Button(self.stat_frm, text=header,command=self.__sort_call(header),background=self.background,width=self.width-1,relief=self.relief,fg=self.color,font=(self.font,self.font_size,'bold'))
-            btn = ttk.Button(self.stat_frm, text=header,command=self.__sort_call(header),width=self.width-1)
+            btn = ttk.Button(self, text=header,command=self.__sort_call(header))
             btn.grid(row=0, column=c+1,sticky='news')
-            self.buttons.append(btn)
 
         for r in range(min(data.shape[0],self.rmax)):
-            self.stat_frm.rowconfigure(r+1,weight=1) # for filling horizontally
+            self.rowconfigure(r+1,weight=1) # for filling horizontally
             # numbers
-            width = 1+int(math.log10(len(data)))
-            #lbl = ttk.Label(self.stat_frm, text=r+1, anchor='e',width=width,background=self.background,relief=self.relief,fg=self.color,font=(self.font,self.font_size,'bold'))
-            lbl = ttk.Label(self.stat_frm, text=r+1, anchor='e',width=width)
+            lbl = ttk.Label(self, text=r+1, anchor='e')
             lbl.grid(row=r+1, column=0,sticky='news')
-            self.labels.append(lbl)
 
             # body
             for c in range(len(data.iloc[r])):
@@ -358,25 +245,30 @@ class StatTable:
                     anchor = 'w'
                 if isinstance(text,float):
                     text = '{:>.3f}'.format(text)
-                #lbl = ttk.Label(self.stat_frm, text=data.iloc[r][c], anchor=anchor,width=self.width,background=background,relief=self.relief,fg=self.color,font=(self.font,self.font_size,'bold'))
-                lbl = ttk.Label(self.stat_frm, text=text, anchor=anchor,width=self.width,background=background)
+                lbl = ttk.Label(self, text=text, anchor=anchor,background=background)
                 lbl.grid(row=r+1, column=c+1,sticky='news')
-                self.labels.append(lbl)
+        r += 2
+        c=0
+        for stat in self.stats.list_stats():
+            def set_v(v=stat):
+                self.set_view(v)
+            btn = ttk.Button(self, text=stat,command=set_v)
+            btn.grid(row=r,column=c,sticky='news')
+            c += 1
 
-    def destroy(self):
-        for lbl in self.labels:
-            lbl.destroy()
-        self.labels = []
-        for btn in self.buttons:
-            btn.destroy()
-        self.buttons = []
+
+    def reload(self):
+        self.destroy()
+        self.__init__(self.frm,self.stats,self.rmax,self.filtered_stats,self.sort,self.ascending,self.view)
+        self.pack()
 
     def get_data(self):
         data = self.filtered_stats.get_stats(self.view)
-        if set(self.sort).issubset(data.columns):
+        for sort in self.sort:
+            if sort not in data.columns:
+                self.sort.remove(sort)
+        if len(self.sort)>0:
             data = data.sort_values(by=self.sort, ascending=self.ascending)
-        else:
-            self.sort = []
         return data
 
     def sort_by(self, n, ascending=None):
@@ -385,7 +277,7 @@ class StatTable:
         self.sort.insert(0,n)
         if ascending is not None:
             self.ascending = ascending
-        self.__display()
+        self.reload()
 
     def __sort_call(self, n):
         ascending = self.ascending
@@ -396,13 +288,13 @@ class StatTable:
     def set_view(self, view):
         if self.view != view:
             self.view = view
-            self.__display()
+            self.reload()
 
     def filter_by_date(self,date):
         self.filtered_stats = self.stats.filter_by_date(date)
-        self.__display()
+        self.reload()
 
     def reset_filter(self):
         self.filtered_stats = self.stats
-        self.__display()
+        self.reload()
 

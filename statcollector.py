@@ -83,13 +83,14 @@ class Simulator:
 class StatCollector:
     """
     Up next:
-     - 
+     - change internal representation for statcollector to dictionaries
+        - need to learn how to get double dict to dataframe in correct way
      - 
     TO DO:
-     - simulation
      - game watch/input
      - better/more options for filter
      - text to show selections/filter
+     - games/probabilities
     """
     def __init__(self, games):
         self.games = games
