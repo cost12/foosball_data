@@ -13,6 +13,46 @@ def visualize_foosball(games,dates):
 
     root.mainloop()
 
+"""
+class ScrollableFrame(ttk.Frame):
+    def __init__(self, parent, *args, **kw):
+        ttk.Frame.__init__(self, parent, *args, **kw)
+
+        # Create a canvas object and a vertical scrollbar for scrolling it.
+        vscrollbar = ttk.Scrollbar(self, orient=VERTICAL)
+        vscrollbar.pack(fill=Y, side=RIGHT, expand=FALSE)
+        canvas = Canvas(self, bd=0, highlightthickness=0,
+                           yscrollcommand=vscrollbar.set)
+        canvas.pack(side=LEFT, fill=BOTH, expand=TRUE)
+        vscrollbar.config(command=canvas.yview)
+
+        # Reset the view
+        canvas.xview_moveto(0)
+        canvas.yview_moveto(0)
+
+        # Create a frame inside the canvas which will be scrolled with it.
+        self.scrollable_frame = interior = ttk.Frame(canvas)
+        interior_id = canvas.create_window(0, 0, window=interior,
+                                           anchor=NW)
+
+        # Track changes to the canvas and frame width and sync them,
+        # also updating the scrollbar.
+        def _configure_interior(event):
+            # Update the scrollbars to match the size of the inner frame.
+            size = (interior.winfo_reqwidth(), interior.winfo_reqheight())
+            canvas.config(scrollregion="0 0 %s %s" % size)
+            if interior.winfo_reqwidth() != canvas.winfo_width():
+                # Update the canvas's width to fit the inner frame.
+                canvas.config(width=interior.winfo_reqwidth())
+        interior.bind('<Configure>', _configure_interior)
+
+        def _configure_canvas(event):
+            if interior.winfo_reqwidth() != canvas.winfo_width():
+                # Update the inner frame's width to fill the canvas.
+                canvas.itemconfigure(interior_id, width=canvas.winfo_width())
+        canvas.bind('<Configure>', _configure_canvas)
+"""
+
 
 class StatsViewControl(ttk.Frame):
 
@@ -247,13 +287,13 @@ class StatTable(ttk.Frame):
                     text = '{:>.3f}'.format(text)
                 lbl = ttk.Label(self, text=text, anchor=anchor,background=background)
                 lbl.grid(row=r+1, column=c+1,sticky='news')
-        r += 2
+
         c=0
         for stat in self.stats.list_stats():
             def set_v(v=stat):
                 self.set_view(v)
             btn = ttk.Button(self, text=stat,command=set_v)
-            btn.grid(row=r,column=c,sticky='news')
+            btn.grid(row=r+2,column=c,sticky='news')
             c += 1
 
 
@@ -264,11 +304,16 @@ class StatTable(ttk.Frame):
 
     def get_data(self):
         data = self.filtered_stats.get_stats(self.view)
-        for sort in self.sort:
-            if sort not in data.columns:
-                self.sort.remove(sort)
+        for s in self.sort:
+            if s not in data.columns:
+                self.sort.remove(s)
         if len(self.sort)>0:
-            data = data.sort_values(by=self.sort, ascending=self.ascending)
+            try:
+                data = data.sort_values(by=self.sort, ascending=self.ascending)
+            except:
+                print(data.columns)
+                print(self.sort)
+                print("")
         return data
 
     def sort_by(self, n, ascending=None):
@@ -297,4 +342,3 @@ class StatTable(ttk.Frame):
     def reset_filter(self):
         self.filtered_stats = self.stats
         self.reload()
-

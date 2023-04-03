@@ -322,21 +322,25 @@ def game_probability(games, game, or_less_likely_game=False,given_total_games_pl
 		p1prob = goal_prob(games, game.winner, game.loser, "ANY")
 	else:
 		p1prob = goal_prob(games, game.winner, game.loser, game.winner_color)
-	game_prob = p1prob**(game.winner_score-1) * (1-p1prob)**game.loser_score * math.comb(game.winner_score-1+game.loser_score,game.loser_score ) * p1prob
+	if given_total_games_played:
+		games_played = 0
+		for g in games:
+			if g.winner == game.winner and g.loser == game.loser and (g.player_color(game.winner) == game.winner_color or not color_matters):
+				games_played += 1
+	return game_prob(p1prob, game, or_less_likely_game, games_played, given_total_games_played)
+
+def game_prob(p1_goal_prob, game, or_less_likely_game=False, games_played=1, given_total_games_played=False):
+	g_prob = p1_goal_prob**(game.winner_score-1) * (1-p1_goal_prob)**game.loser_score * math.comb(game.winner_score-1+game.loser_score,game.loser_score ) * p1_goal_prob
 	
 	less_likely_prob = 0
 	if or_less_likely_game:
 		for i in range(0,game.loser_score):
-			less_likely_prob += p1prob**(game.winner_score-1) * (1-p1prob)**i * math.comb(game.winner_score-1+i,i ) * p1prob
-		game_prob = min(game_prob+less_likely_prob, 1-less_likely_prob)
+			less_likely_prob += p1_goal_prob**(game.winner_score-1) * (1-p1_goal_prob)**i * math.comb(game.winner_score-1+i,i ) * p1_goal_prob
+		g_prob = min(g_prob+less_likely_prob, 1-less_likely_prob)
 
 	if given_total_games_played:
-		count = 0
-		for g in games:
-			if g.winner == game.winner and g.loser == game.loser and (g.player_color(game.winner) == game.winner_color or not color_matters):
-				count += 1
-		game_prob = 1-((1-game_prob)**count)
-	return game_prob
+		g_prob = 1-((1-g_prob)**games_played)
+	return g_prob
 
 def goal_prob(games, p1, p2, p1color="ANY"):
 	p1_goals = 1

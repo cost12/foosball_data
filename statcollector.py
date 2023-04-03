@@ -96,13 +96,24 @@ class StatCollector:
         self.games = games
         #self.matchups = foosballgame.get_matchups(self.games)
         #self.filtered = games
-        self.stats = ['players','matchups']
+        self.stats = ['players','matchups','games']
         self.individual_stats = None
         self.matchup_stats = None
+        self.game_stats = None
         self.__calculate_stats()
 
     def __calculate_stats(self):
         data_i,data_m = self.__get_data(self.games)
+
+        data_g = {}
+        for game in self.games:
+            g_prob1 = 100*foosballgame.game_prob((data_m[game.winner+game.loser]['GF']+1)/(data_m[game.winner+game.loser]['GF']+data_m[game.winner+game.loser]['GA']+2), game, or_less_likely_game=False, games_played=data_m[game.winner+game.loser]['W']+data_m[game.winner+game.loser]['L'], given_total_games_played=False)
+            g_prob2 = 100*foosballgame.game_prob((data_m[game.winner+game.loser]['GF']+1)/(data_m[game.winner+game.loser]['GF']+data_m[game.winner+game.loser]['GA']+2), game, or_less_likely_game=True, games_played=data_m[game.winner+game.loser]['W']+data_m[game.winner+game.loser]['L'], given_total_games_played=False)
+            g_prob3 = 100*foosballgame.game_prob((data_m[game.winner+game.loser]['GF']+1)/(data_m[game.winner+game.loser]['GF']+data_m[game.winner+game.loser]['GA']+2), game, or_less_likely_game=True, games_played=data_m[game.winner+game.loser]['W']+data_m[game.winner+game.loser]['L'], given_total_games_played=True)
+            g_prob4 = 100*foosballgame.game_prob((data_m[game.winner+game.loser]['GF']+1)/(data_m[game.winner+game.loser]['GF']+data_m[game.winner+game.loser]['GA']+2), game, or_less_likely_game=False, games_played=data_m[game.winner+game.loser]['W']+data_m[game.winner+game.loser]['L'], given_total_games_played=True)
+            data_g[game.number] = {'Winner':game.winner,'Loser':game.loser,'Winner Score':game.winner_score,'Loser Score':game.loser_score,'Winner Color':game.winner_color,'Date':game.date,'Number':game.number,'G PROB':g_prob1,'LL PROB':g_prob2,'LL EXIST PROB':g_prob3,'EXIST PROB':g_prob4}
+
+        self.game_stats = pd.DataFrame.from_dict(data_g,orient='index')
 
         self.individual_stats = pd.DataFrame.from_dict(data_i,orient='index')
         self.individual_stats = self.__calculate_final_columns(self.individual_stats)
@@ -183,6 +194,8 @@ class StatCollector:
             return self.individual_stats
         elif stat == 'matchups':
             return self.matchup_stats[self.matchup_stats['W'] > self.matchup_stats['L']]
+        elif stat == 'games':
+            return self.game_stats
         elif stat in self.stats:
             print("Error: no stats for {}".format(stat))
 
