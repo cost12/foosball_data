@@ -124,84 +124,197 @@ class SimView(ttk.Frame):
         self.rowconfigure(8,weight=1)
         self.rowconfigure(9,weight=1)
 
+        r = 0
         # top row
         self.p1_ent = ttk.Entry(self,textvariable=self.player1)
-        self.p1_ent.grid(row=0, column=0,sticky='news')
+        self.p1_ent.grid(row=r, column=0,sticky='news')
         self.p1_ent.insert(0,p1)
         self.reset_btn = ttk.Button(self, text='Reset', command=self.reset)
-        self.reset_btn.grid(row=0, column=1,sticky='news')
+        self.reset_btn.grid(row=r, column=1,sticky='news')
         self.p2_ent = ttk.Entry(self,textvariable=self.player2)
-        self.p2_ent.grid(row=0, column=2,sticky='news')
+        self.p2_ent.grid(row=r, column=2,sticky='news')
         self.p2_ent.insert(0,p2)
 
+        r += 1
         # row 1
         self.score_lbl1 = ttk.Label(self, text='score:',anchor='e')
-        self.score_lbl1.grid(row=1,column=0,sticky='news')
+        self.score_lbl1.grid(row=r,column=0,sticky='news')
         self.sim_goal_btn = ttk.Button(self, text='Sim goal', command=self.sim_goal)
-        self.sim_goal_btn.grid(row=1, column=1,sticky='news')
+        self.sim_goal_btn.grid(row=r, column=1,sticky='news')
         self.score_lbl2 = ttk.Label(self, text='score:')
-        self.score_lbl2.grid(row=1,column=2,sticky='news')
+        self.score_lbl2.grid(row=r,column=2,sticky='news')
 
+        r += 1
         # row 2
         self.score_num1 = ttk.Label(self, text=self.simulator.sim_score1,anchor='e')
-        self.score_num1.grid(row=2,column=0,sticky='news')
+        self.score_num1.grid(row=r,column=0,sticky='news')
         self.sim_game_btn = ttk.Button(self, text='Sim Game', command=self.sim_game)
-        self.sim_game_btn.grid(row=2, column=1,sticky='news')
+        self.sim_game_btn.grid(row=r, column=1,sticky='news')
         self.score_num2 = ttk.Label(self, text=self.simulator.sim_score2)
-        self.score_num2.grid(row=2,column=2,sticky='news')
+        self.score_num2.grid(row=r,column=2,sticky='news')
 
+        r += 1
         # row 3
         self.win_prob_lbl1 =  ttk.Label(self, text='win prob',anchor='e')
-        self.win_prob_lbl1.grid(row=3,column=0,sticky='news')
+        self.win_prob_lbl1.grid(row=r,column=0,sticky='news')
         self.time_frame_lbl = ttk.Label(self, text=self.time_str,anchor='c')
-        self.time_frame_lbl.grid(row=3,column=1,sticky='news')
+        self.time_frame_lbl.grid(row=r,column=1,sticky='news')
         self.win_prob_lbl2 =  ttk.Label(self, text='win prob',anchor='w')
-        self.win_prob_lbl2.grid(row=3,column=2,sticky='news')
+        self.win_prob_lbl2.grid(row=r,column=2,sticky='news')
 
+        r += 1
         # row 4
         text = '{:>.3f}%'.format(self.simulator.get_p1_win_odds()*100)
         self.win_prob_num1 = ttk.Label(self, text=text,anchor='e')
-        self.win_prob_num1.grid(row=4,column=0,sticky='news')
+        self.win_prob_num1.grid(row=r,column=0,sticky='news')
         text = '{:>.3f}%'.format((1-self.simulator.get_p1_win_odds())*100)
         self.win_prob_num2 = ttk.Label(self, text=text)
-        self.win_prob_num2.grid(row=4,column=2,sticky='news')
+        self.win_prob_num2.grid(row=r,column=2,sticky='news')
 
+        r += 1
         # row 5
         self.exp_score_lbl1 = ttk.Label(self, text='exp score',anchor='e')
-        self.exp_score_lbl1.grid(row=5,column=0,sticky='news')
+        self.exp_score_lbl1.grid(row=r,column=0,sticky='news')
         self.exp_score_lbl2 = ttk.Label(self, text='exp score',anchor='w')
-        self.exp_score_lbl2.grid(row=5,column=2,sticky='news')
+        self.exp_score_lbl2.grid(row=r,column=2,sticky='news')
 
+        r += 1
         # row 6
         text = '{:>.3f}'.format(self.simulator.get_expected_score(self.simulator.player1))
         self.exp_score_num1 = ttk.Label(self, text=text,anchor='e')
-        self.exp_score_num1.grid(row=6,column=0,sticky='news')
+        self.exp_score_num1.grid(row=r,column=0,sticky='news')
         text = '{:>.3f}'.format(self.simulator.get_expected_score(self.simulator.player2))
         self.exp_score_num2 = ttk.Label(self, text=text)
-        self.exp_score_num2.grid(row=6,column=2,sticky='news')
+        self.exp_score_num2.grid(row=r,column=2,sticky='news')
 
+        r += 1
         # row 7
         self.prob_score_lbl1 = ttk.Label(self, text='prob score',anchor='e')
-        self.prob_score_lbl1.grid(row=7,column=0,sticky='news')
+        self.prob_score_lbl1.grid(row=r,column=0,sticky='news')
         self.prob_score_lbl2 = ttk.Label(self, text='prob score',anchor='w')
-        self.prob_score_lbl2.grid(row=7,column=2,sticky='news')
+        self.prob_score_lbl2.grid(row=r,column=2,sticky='news')
 
+        r += 1
         # row 8
         self.prob_score_num1 = ttk.Label(self, text=self.simulator.get_most_probable_score(self.simulator.player1),anchor='e')
-        self.prob_score_num1.grid(row=8,column=0,sticky='news')
+        self.prob_score_num1.grid(row=r,column=0,sticky='news')
         self.prob_score_num2 = ttk.Label(self, text=self.simulator.get_most_probable_score(self.simulator.player2),anchor='w')
-        self.prob_score_num2.grid(row=8,column=2,sticky='news')
+        self.prob_score_num2.grid(row=r,column=2,sticky='news')
 
+        r += 1
         # row 9
         self.add_goal_btn1 = ttk.Button(self, text='Add Goal', command=lambda : self.add_goal(self.simulator.player1))
-        self.add_goal_btn1.grid(row=9,column=0,sticky='news')
+        self.add_goal_btn1.grid(row=r,column=0,sticky='news')
         self.add_goal_btn2 = ttk.Button(self, text='Add Goal', command=lambda : self.add_goal(self.simulator.player2))
-        self.add_goal_btn2.grid(row=9,column=2,sticky='news')
+        self.add_goal_btn2.grid(row=r,column=2,sticky='news')
 
+        r += 1
         # row 10 (wins)
-        #self.wins_lbl1 = ttk.Label()
+        self.wins_lbl1 = ttk.Label(self, text=0, anchor='e')
+        self.wins_lbl1.grid(row=r,column=0,sticky='news')
+        ttk.Label(self, text='wins', anchor='c').grid(row=r,column=1,sticky='news')
+        self.wins_lbl2 = ttk.Label(self, text=0, anchor='w')
+        self.wins_lbl2.grid(row=r,column=2,sticky='news')
 
+        r += 1
         # row 11 (goals)
+        self.goals_lbl1 = ttk.Label(self, text=0, anchor='e')
+        self.goals_lbl1.grid(row=r,column=0,sticky='news')
+        ttk.Label(self, text='goals', anchor='c').grid(row=r,column=1,sticky='news')
+        self.goals_lbl2 = ttk.Label(self, text=0, anchor='w')
+        self.goals_lbl2.grid(row=r,column=2,sticky='news')
+
+        r+=1
+        ttk.Label(self, text='Scrore Probs', anchor='c').grid(row=r,column=1,sticky='news')
+
+        r += 1
+        # row 12 (0)
+        self.score_0_lbl1 = ttk.Label(self, text=1, anchor='e')
+        self.score_0_lbl1.grid(row=r,column=0,sticky='news')
+        ttk.Label(self,text='0',anchor='c').grid(row=r,column=1,sticky='news')
+        self.score_0_lbl2 = ttk.Label(self, text=1, anchor='w')
+        self.score_0_lbl2.grid(row=r,column=2,sticky='news')
+
+        r += 1
+        # row 13 (1)
+        self.score_1_lbl1 = ttk.Label(self, text=0, anchor='e')
+        self.score_1_lbl1.grid(row=r,column=0,sticky='news')
+        ttk.Label(self,text='1',anchor='c').grid(row=r,column=1,sticky='news')
+        self.score_1_lbl2 = ttk.Label(self, text=0, anchor='w')
+        self.score_1_lbl2.grid(row=r,column=2,sticky='news')
+        
+        r += 1
+        # row 14 (2)
+        self.score_2_lbl1 = ttk.Label(self, text=0, anchor='e')
+        self.score_2_lbl1.grid(row=r,column=0,sticky='news')
+        ttk.Label(self,text='2',anchor='c').grid(row=r,column=1,sticky='news')
+        self.score_2_lbl2 = ttk.Label(self, text=0, anchor='w')
+        self.score_2_lbl2.grid(row=r,column=2,sticky='news')
+
+        r += 1
+        # row 15 (3)
+        self.score_3_lbl1 = ttk.Label(self, text=0, anchor='e')
+        self.score_3_lbl1.grid(row=r,column=0,sticky='news')
+        ttk.Label(self,text='3',anchor='c').grid(row=r,column=1,sticky='news')
+        self.score_3_lbl2 = ttk.Label(self, text=0, anchor='w')
+        self.score_3_lbl2.grid(row=r,column=2,sticky='news')
+
+        r += 1
+        # row 16 (4)
+        self.score_4_lbl1 = ttk.Label(self, text=0, anchor='e')
+        self.score_4_lbl1.grid(row=r,column=0,sticky='news')
+        ttk.Label(self,text='4',anchor='c').grid(row=r,column=1,sticky='news')
+        self.score_4_lbl2 = ttk.Label(self, text=0, anchor='w')
+        self.score_4_lbl2.grid(row=r,column=2,sticky='news')
+
+        r += 1
+        # row 17 (5)
+        self.score_5_lbl1 = ttk.Label(self, text=0, anchor='e')
+        self.score_5_lbl1.grid(row=r,column=0,sticky='news')
+        ttk.Label(self,text='5',anchor='c').grid(row=r,column=1,sticky='news')
+        self.score_5_lbl2 = ttk.Label(self, text=0, anchor='w')
+        self.score_5_lbl2.grid(row=r,column=2,sticky='news')
+
+        r += 1
+        # row 18 (6)
+        self.score_6_lbl1 = ttk.Label(self, text=0, anchor='e')
+        self.score_6_lbl1.grid(row=r,column=0,sticky='news')
+        ttk.Label(self,text='6',anchor='c').grid(row=r,column=1,sticky='news')
+        self.score_6_lbl2 = ttk.Label(self, text=0, anchor='w')
+        self.score_6_lbl2.grid(row=r,column=2,sticky='news')
+
+        r += 1
+        # row 19 (7)
+        self.score_7_lbl1 = ttk.Label(self, text=0, anchor='e')
+        self.score_7_lbl1.grid(row=r,column=0,sticky='news')
+        ttk.Label(self,text='7',anchor='c').grid(row=r,column=1,sticky='news')
+        self.score_7_lbl2 = ttk.Label(self, text=0, anchor='w')
+        self.score_7_lbl2.grid(row=r,column=2,sticky='news')
+
+        r += 1
+        # row 20 (8)
+        self.score_8_lbl1 = ttk.Label(self, text=0, anchor='e')
+        self.score_8_lbl1.grid(row=r,column=0,sticky='news')
+        ttk.Label(self,text='8',anchor='c').grid(row=r,column=1,sticky='news')
+        self.score_8_lbl2 = ttk.Label(self, text=0, anchor='w')
+        self.score_8_lbl2.grid(row=r,column=2,sticky='news')
+
+        r += 1
+        # row 21 (9)
+        self.score_9_lbl1 = ttk.Label(self, text=0, anchor='e')
+        self.score_9_lbl1.grid(row=r,column=0,sticky='news')
+        ttk.Label(self,text='9',anchor='c').grid(row=r,column=1,sticky='news')
+        self.score_9_lbl2 = ttk.Label(self, text=0, anchor='w')
+        self.score_9_lbl2.grid(row=r,column=2,sticky='news')
+
+        r += 1
+        # row 22 (10)
+        self.score_10_lbl1 = ttk.Label(self, text=0, anchor='e')
+        self.score_10_lbl1.grid(row=r,column=0,sticky='news')
+        ttk.Label(self,text='10',anchor='c').grid(row=r,column=1,sticky='news')
+        self.score_10_lbl2 = ttk.Label(self, text=0, anchor='w')
+        self.score_10_lbl2.grid(row=r,column=2,sticky='news')
+
     
     """
     Redraws everything
@@ -279,6 +392,57 @@ class SimView(ttk.Frame):
         self.exp_score_num2.config(text=text)
         self.prob_score_num1.config(text=self.simulator.get_most_probable_score(self.simulator.player1))
         self.prob_score_num2.config(text=self.simulator.get_most_probable_score(self.simulator.player2))
+
+        self.wins_lbl1.config(text=self.simulator.get_wins_for(self.simulator.player1))
+        self.wins_lbl2.config(text=self.simulator.get_wins_for(self.simulator.player2))
+        self.goals_lbl1.config(text=self.simulator.get_goals_for(self.simulator.player1))
+        self.goals_lbl2.config(text=self.simulator.get_goals_for(self.simulator.player2))
+
+        text = '{:>.3f}'.format(self.simulator.get_prob_of_score(self.simulator.player1,0)*100)
+        self.score_0_lbl1.config(text=text)
+        text = '{:>.3f}'.format(self.simulator.get_prob_of_score(self.simulator.player2,0)*100)
+        self.score_0_lbl2.config(text=text)
+        text = '{:>.3f}'.format(self.simulator.get_prob_of_score(self.simulator.player1,1)*100)
+        self.score_1_lbl1.config(text=text)
+        text = '{:>.3f}'.format(self.simulator.get_prob_of_score(self.simulator.player2,1)*100)
+        self.score_1_lbl2.config(text=text)
+        text = '{:>.3f}'.format(self.simulator.get_prob_of_score(self.simulator.player1,2)*100)
+        self.score_2_lbl1.config(text=text)
+        text = '{:>.3f}'.format(self.simulator.get_prob_of_score(self.simulator.player2,2)*100)
+        self.score_2_lbl2.config(text=text)
+        text = '{:>.3f}'.format(self.simulator.get_prob_of_score(self.simulator.player1,3)*100)
+        self.score_3_lbl1.config(text=text)
+        text = '{:>.3f}'.format(self.simulator.get_prob_of_score(self.simulator.player2,3)*100)
+        self.score_3_lbl2.config(text=text)
+        text = '{:>.3f}'.format(self.simulator.get_prob_of_score(self.simulator.player1,4)*100)
+        self.score_4_lbl1.config(text=text)
+        text = '{:>.3f}'.format(self.simulator.get_prob_of_score(self.simulator.player2,4)*100)
+        self.score_4_lbl2.config(text=text)
+        text = '{:>.3f}'.format(self.simulator.get_prob_of_score(self.simulator.player1,5)*100)
+        self.score_5_lbl1.config(text=text)
+        text = '{:>.3f}'.format(self.simulator.get_prob_of_score(self.simulator.player2,5)*100)
+        self.score_5_lbl2.config(text=text)
+        text = '{:>.3f}'.format(self.simulator.get_prob_of_score(self.simulator.player1,6)*100)
+        self.score_6_lbl1.config(text=text)
+        text = '{:>.3f}'.format(self.simulator.get_prob_of_score(self.simulator.player2,6)*100)
+        self.score_6_lbl2.config(text=text)
+        text = '{:>.3f}'.format(self.simulator.get_prob_of_score(self.simulator.player1,7)*100)
+        self.score_7_lbl1.config(text=text)
+        text = '{:>.3f}'.format(self.simulator.get_prob_of_score(self.simulator.player2,7)*100)
+        self.score_7_lbl2.config(text=text)
+        text = '{:>.3f}'.format(self.simulator.get_prob_of_score(self.simulator.player1,8)*100)
+        self.score_8_lbl1.config(text=text)
+        text = '{:>.3f}'.format(self.simulator.get_prob_of_score(self.simulator.player2,8)*100)
+        self.score_8_lbl2.config(text=text)
+        text = '{:>.3f}'.format(self.simulator.get_prob_of_score(self.simulator.player1,9)*100)
+        self.score_9_lbl1.config(text=text)
+        text = '{:>.3f}'.format(self.simulator.get_prob_of_score(self.simulator.player2,9)*100)
+        self.score_9_lbl2.config(text=text)
+        text = '{:>.3f}'.format(self.simulator.get_prob_of_score(self.simulator.player1,10)*100)
+        self.score_10_lbl1.config(text=text)
+        text = '{:>.3f}'.format(self.simulator.get_prob_of_score(self.simulator.player2,10)*100)
+        self.score_10_lbl2.config(text=text)
+        
 
 
 """

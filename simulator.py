@@ -46,7 +46,29 @@ class Simulator:
                 self.sim_score1 += 1
             elif player == self.player2:
                 self.sim_score2 += 1
+
+    """
+    Get the total goals scored for player1 against player2 in all games
+    """
+    def get_goals_for(self, player:str) -> int:
+        if player == self.player1:
+            return self.stats.get_goals_scored_on(self.player1,self.player2)
+        elif player == self.player2:
+            return self.stats.get_goals_scored_on(self.player2,self.player1)
+        else:
+            return 0
     
+    """
+    Get the total wins for player1 against player2 in all games
+    """
+    def get_wins_for(self, player:str) -> int:
+        if player == self.player1:
+            return self.stats.get_wins_against(self.player1,self.player2)
+        elif player == self.player2:
+            return self.stats.get_wins_against(self.player2,self.player1)
+        else:
+            return 0 
+
     """
     The probability that player1 scores on player2 on a given point
     """
@@ -95,6 +117,20 @@ class Simulator:
         for i in range(1,self.game_to+1):
             exp += i*foosballgame.get_prob_of_score(goalprob,i,pscore,oppscore,self.game_to)
         return exp
+    
+    """
+    Return the probability that the given player gets the given score
+    """
+    def get_prob_of_score(self, player:str, score:int) -> float:
+        if player == self.player1:
+            return foosballgame.get_prob_of_score(self.get_p1_goal_prob(),score,self.sim_score1,self.sim_score2,self.game_to)
+        elif player == self.player2:
+            return foosballgame.get_prob_of_score(1-self.get_p1_goal_prob(),score,self.sim_score2,self.sim_score1,self.game_to)
+        else:
+            if score == 0:
+                return 1
+            else:
+                return 0
 
     """
     Returns the most probable score for te given player given the current status of the simulation

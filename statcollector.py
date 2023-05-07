@@ -196,6 +196,15 @@ class StatCollector:
             return self.matchup_dict[player1+player2]['GF']
         else:
             return 0
+        
+    """
+    Returns the number of wins player1 has against player2
+    """
+    def get_wins_against(self, player1:str, player2:str) -> int:
+        if (player1+player2) in self.matchup_dict: 
+            return self.matchup_dict[player1+player2]['W']
+        else:
+            return 0
 
     """
     Returns the dataframe for a given stat category
