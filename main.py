@@ -4,7 +4,10 @@ import userinput
 import data_read_in
 import data_visualizer
 
-def mainPrint(save_csv=False,use_csv=False):
+"""
+Main function used for command line interface, not really used
+"""
+def mainPrint(save_csv:bool=False,use_csv:bool=False) -> None:
     if use_csv:
         games = data_read_in.read_in_games_from_csv()
     else:
@@ -12,7 +15,10 @@ def mainPrint(save_csv=False,use_csv=False):
     if games is not None:
         userinput.interaction(games)
 
-def mainVisualize(save_csv=False,use_csv=False):
+"""
+Main function used for tkinter interface
+"""
+def mainVisualize(save_csv:bool=False,use_csv:bool=False) -> None:
     if use_csv:
         games = data_read_in.read_in_games_from_csv()
         dates = data_read_in.read_in_dates_from_csv()
@@ -22,6 +28,15 @@ def mainVisualize(save_csv=False,use_csv=False):
     if games is not None:
         data_visualizer.visualize_foosball(games,dates)
 
+"""
+Main function for foosball data interactions
+
+Command line args:
+    vis or v:   visualize with tkinter
+    print or p: print with command line
+    save: save the games to csv
+    csv:  read the games from csv rather than the google sheet
+"""
 def main():
     to_run = 'vis'
     save_csv = False
