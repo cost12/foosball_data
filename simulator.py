@@ -32,6 +32,18 @@ class Simulator:
         self.game_to = 10
 
     """
+    Resets the simulation with the option to chose the players
+    """
+    def reset_simulator(self, p1=None, p2=None):
+        if p1 is not None:
+            self.player1 = p1
+        if p2 is not None:
+            self.player2 = p2
+        self.sim_score1 = 0
+        self.sim_score2 = 0
+        self.game_to = 10
+
+    """
     Returns true if the game is over/ either player has self.game_to goals
     """
     def is_over(self) -> bool:
@@ -131,6 +143,17 @@ class Simulator:
                 return 1
             else:
                 return 0
+            
+    """
+    Get the number of times a player scored score goals against the other player
+    """
+    def get_times_scored_n(self, player:str, score:int) -> int:
+        if player == self.player1:
+            return self.stats.get_times_scored_n(self.player1, self.player2, score)
+        elif player == self.player2:
+            return self.stats.get_times_scored_n(self.player2, self.player1, score)
+        else:
+            return 0
 
     """
     Returns the most probable score for te given player given the current status of the simulation

@@ -7,6 +7,7 @@ import colley
 import elo
 import simulator
 import event_date
+import gamefilter
 
 """
 This class collects stats for a group of games
@@ -24,19 +25,23 @@ class StatCollector:
      - games/probabilities
     """
     def __init__(self, games:foosballgame.FoosballGame) -> None:
+        # keep track of whether the data has been changed and needs to be recalculated
+        self.refiltered = True
+        self.games_added = True
+
         # games for which stats are collected
-        self.games = []
+        self.games = list[foosballgame.FoosballGame](games)
 
         # stat categories that are collected
         self.stat_categories = ['players','matchups','games']
 
         # TODO: these may be useful/implemented later but not now
         #self.matchups = foosballgame.get_matchups(self.games)
-        #self.filtered = games
+        self.filtered = list[foosballgame.FoosballGame](games)
 
-        # dictionaries
-        self.individual_dict = {}
-        self.matchup_dict = {}
+        # dictionaries, initiated in init_dicts
+        #self.individual_dict = {}
+        #self.matchup_dict = {}
 
         # elo
         self.elo_tracker = elo.ELO_Calculator()
@@ -51,11 +56,34 @@ class StatCollector:
         self.__build_dfs()
 
     """
+    Recalculate all values, called when the filter changes
+    """
+    def __recalculate(self) -> None:
+        self.__init_dicts(self.filtered)
+        self.__build_dfs()
+
+    """
+    Call at the start of any function that uses internal dicts
+    """
+    def __uses_dicts(self) -> None:
+        if self.refiltered:
+            self.__recalculate()
+
+    """
+    Call at the start of any function that uses internal dfs
+    """
+    def __uses_dfs(self) -> None:
+        if self.refiltered:
+            self.__recalculate()
+        elif self.games_added:
+            self.__build_dfs()
+
+    """
     Update/ build the dataframes used 
     """
     def __build_dfs(self) -> None:
         data_g = {} # this can't be calculated with the others because it depends on all time matchups
-        for game in self.games:
+        for game in self.filtered:
             w_goals = self.matchup_dict[game.winner+game.loser]['GF']+1
             l_goals = self.matchup_dict[game.winner+game.loser]['GA']+1
             t_goals = w_goals + l_goals
@@ -90,14 +118,16 @@ class StatCollector:
         self.matchup_stats = self.__calculate_final_columns(self.matchup_stats)
         self.matchup_stats = self.matchup_stats[stats]
 
-        colley_w = colley.get_colley_rankings(self.games,by_wins=True)
-        colley_g = colley.get_colley_rankings(self.games,by_wins=False)
+        colley_w = colley.get_colley_rankings(self.filtered,by_wins=True)
+        colley_g = colley.get_colley_rankings(self.filtered,by_wins=False)
         colley_w = pd.DataFrame.from_dict(colley_w,orient='index')
         colley_g = pd.DataFrame.from_dict(colley_g,orient='index')
         self.individual_stats = self.individual_stats.merge(colley_w)
         self.individual_stats = self.individual_stats.merge(colley_g)
 
         self.individual_stats = self.individual_stats.merge(self.elo_tracker.to_df())
+        
+        self.games_added = False
         
     """
     Adds the last few columns onto the dataframes
@@ -117,8 +147,12 @@ class StatCollector:
     Initially add all data from the starting games into the individual and matchup dictionaries
     """
     def __init_dicts(self,games:list[foosballgame.FoosballGame]) -> None:
+        self.individual_dict = {}
+        self.matchup_dict = {}
+        self.elo_tracker = elo.ELO_Calculator()
         for game in games:
-            self.add_game(game)
+            self.add_game(game, new_game=False)
+        self.refiltered = False
 
     """
     Adds a list of games to the dataset
@@ -126,15 +160,17 @@ class StatCollector:
     def add_games(self,games:list[foosballgame.FoosballGame]) -> None:
         for game in games:
             self.add_game(game)
-        self.__build_dfs()
-    
+            
     """
     Add a game into the stat collector
     Updates the dictionaries and elo with the new game
     Optionally update the dataframe
     """
-    def add_game(self, game:foosballgame.FoosballGame, update_df:bool=False) -> None:
-        self.games.append(game)
+    def add_game(self, game:foosballgame.FoosballGame, filter_in:bool=True, new_game = True) -> None:
+        if new_game:
+            self.games.append(game)
+            if filter_in:
+                self.filtered.append(game)
         self.elo_tracker.add_game(game)
 
         # Commented out lines are for if TODO below works
@@ -172,9 +208,8 @@ class StatCollector:
         self.matchup_dict[game.loser+game.winner]['GF'] += game.loser_score
         self.matchup_dict[game.loser+game.winner]['GA'] += game.winner_score
         self.matchup_dict[game.loser+game.winner]['Streak'].add_result('L')
-
-        if update_df:
-            self.__build_dfs()
+        
+        self.games_added = True
 
     """
     Returns a list of the stat categories
@@ -182,16 +217,18 @@ class StatCollector:
     def list_stats(self) -> list[str]:
         return list(self.stat_categories)
     
-    """ TODO: implement to not use df here, implement so df only updated when needed
+    """
     Returns a list of the players who have competed
     """
     def list_players(self) -> list[str]:
-        return self.individual_stats['Name'].tolist()
+        self.__uses_dicts()
+        return list(self.individual_dict.keys())
     
     """
     Returns the number of goals player1 has scored on player2
     """
     def get_goals_scored_on(self, player1:str, player2:str) -> int:
+        self.__uses_dicts()
         if (player1+player2) in self.matchup_dict: 
             return self.matchup_dict[player1+player2]['GF']
         else:
@@ -201,19 +238,39 @@ class StatCollector:
     Returns the number of wins player1 has against player2
     """
     def get_wins_against(self, player1:str, player2:str) -> int:
+        self.__uses_dicts()
         if (player1+player2) in self.matchup_dict: 
             return self.matchup_dict[player1+player2]['W']
         else:
             return 0
+        
+    """
+    Returns the number of times player1 scored num goals against player2
+    ANY can be passed for either player
+    """
+    def get_times_scored_n(self, player1:str, player2:str, num:int) -> int:
+        count = 0
+        for game in self.filtered:
+            if (game.winner == player1 or player1 == 'ANY') and (game.loser == player2 or player2 == 'ANY'):
+                if game.winner_score == num:
+                    count += 1
+            elif (game.loser == player1 or player1 == 'ANY') and (game.winner == player2 or player2 == 'ANY'):
+                if game.loser_score == num:
+                    count += 1
+        return count
 
     """
     Returns the dataframe for a given stat category
     """
     def get_stats(self, stat:str) -> pd.DataFrame:
+        self.__uses_dfs()
         if stat == 'players':
             return self.individual_stats
         elif stat == 'matchups':
-            return self.matchup_stats[self.matchup_stats['W'] > self.matchup_stats['L']]
+            # lots of tie breakers
+            return self.matchup_stats.loc[self.matchup_stats['W'] >  self.matchup_stats['L'] | 
+                                        ((self.matchup_stats['W'] == self.matchup_stats['L']) & (self.matchup_stats['GF'] > self.matchup_stats['GA'])) | 
+                                        ((self.matchup_stats['W'] == self.matchup_stats['L']) & (self.matchup_stats['GF'] == self.matchup_stats['GA']) & (self.matchup_stats['STRK'] < gameinfo.Streak(1,'W')))]
         elif stat == 'games':
             return self.game_stats
         elif stat in self.stat_categories:
@@ -228,10 +285,73 @@ class StatCollector:
     """
     Filters the games by selecting ones from the given timeframe and returns a new StatCollector
     """
-    def filter_by_date(self,event_date:event_date.EventDate): # TODO: figure out how to type hint here
-        games = []
+    def filter_by_date(self,event_date:event_date.EventDate) -> None:
+        filtered = []
         for game in self.games:
             if event_date.contains_date(game.date):
-                games.append(game)
-        return StatCollector(games)
+                filtered.append(game)
+        if not self.filtered == filtered:
+            self.filtered = filtered     
+            self.refiltered = True
+
+    """
+    Applies a filter to the games
+    """
+    def apply_filter(self, filter:gamefilter.GameFilter) -> None:
+        filtered = []
+        for game in self.games:
+            if filter.predicate(game):
+                filtered.append(game)
+        if not self.filtered == filtered:
+            self.filtered = filtered     
+            self.refiltered = True
+
+    """
+    Count how many games would be selected by a given filter
+    """
+    def count_filtered(self, filter:gamefilter.GameFilter) -> int:
+        count = 0
+        for game in self.games:
+            if filter.predicate(game):
+                count += 1
+        return count
+
+    """
+    Resets the filter to include all games
+    """
+    def reset_filter(self) -> None:
+        self.filtered = list(self.games)
+        self.refiltered = True
+
+    # TODO: consolidate magic numbers
+    def min_score_possible(self) -> int:
+        return 0
     
+    def max_score_possible(self) -> int:
+        return 10
+    
+    def min_score_loss(self) -> int:
+        min_ach = self.filtered[0].loser_score
+        for game in self.filtered:
+            if game.loser_score < min_ach:
+                min_ach = game.loser_score
+        return min_ach
+    
+    def max_score_loss(self) -> int:
+        max_ach = self.filtered[0].loser_score
+        for game in self.filtered:
+            if game.loser_score > max_ach:
+                max_ach = game.loser_score
+        return max_ach
+    
+    def min_num(self) -> int:
+        return self.games[0].number
+    
+    def max_num(self) -> int:
+        return self.games[-1].number
+    
+    def min_num_selected(self) -> int:
+        return self.filtered[0].number
+    
+    def max_num_selected(self) -> int:
+        return self.filtered[-1].number

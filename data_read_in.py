@@ -80,7 +80,7 @@ def read_df_to_games(game_df):
 def read_df_to_dates(date_df):
     dates = []
     for i in range(0,len(date_df)):
-        name = 'Semester ' + str(date_df.iloc[i]['Semester Number'])
+        name = str(date_df.iloc[i]['Semester Name'])
         if type(name) != str:
             break
         start = date_df.iloc[i]['Semester Start Date']
@@ -99,7 +99,6 @@ def clean_game_df(game_df):
     return game_df
 
 def clean_date_df(date_df):
-    date_df = date_df[date_df['Semester Number'].notna()]
-    date_df = date_df[['Semester Number','Semester Start Date','Semester End Date']]
-    date_df = date_df.astype({'Semester Number':int})
+    date_df = date_df[date_df['Semester Name'].notna()]
+    date_df = date_df[['Semester Name','Semester Start Date','Semester End Date']]
     return date_df

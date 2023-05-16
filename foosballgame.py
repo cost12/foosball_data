@@ -1,4 +1,4 @@
-import matchup
+import old.matchup as matchup
 
 import datetime
 import pandas as pd
@@ -246,7 +246,6 @@ def get_average_scores_allowed(games):
 		avgs[player] = [div(totals[player][0], totals[player][1]), div(totals[player][2], totals[player][3])]
 	return avgs
 
-
 def div(a,b,val=0):
 	if b == 0:
 		return val
@@ -408,60 +407,3 @@ def get_prob_of_score(goalprob,score,cur_score=0,opp_score=0,gameto=10):
 	opp_goal_prob = 1-goalprob
 	prob = goalprob**to_go * opp_goal_prob**(opp_to_go-1) * math.comb(to_go+opp_to_go-1,to_go) * opp_goal_prob
 	return prob
-
-
-
-class FoosballPredicate:
-
-	def __init__(self):
-		self.reset()
-
-	def reset(self):
-		self.winners = {"ANY"}
-		self.losers =  {"ANY"}
-
-		self.exclude_winners = set()
-		self.exclude_losers =  set()
-
-		self.win_score_max = 10
-		self.win_score_min = 10
-
-		self.lose_score_max = 9
-		self.lose_score_min = 0
-
-		self.winner_color = 'ANY'
-
-		self.number_min = 0
-		self.number_max = 999999
-
-		self.date_min = datetime.date(2000, 1, 1)
-		self.date_max = datetime.date(9000, 1, 1)
-
-	def get_predicate(self):
-		return lambda game : self.predicate(game)
-
-	def print(self):
-		print("Selecting for:")
-		print("Winners: " + str(self.winners))
-		print("Losers: " + str(self.losers))
-		print("Exclude winners: " + str(self.exclude_winners))
-		print("Exclude losers: " + str(self.exclude_losers))
-		print("Lose score from: " + str(self.lose_score_min) + " to " + str(self.lose_score_max))
-		print("Winner color: " + str(self.winner_color))
-		print("Number from: " + str(self.number_min) + " to " + str(self.number_max))
-		print("Date from: " + str(self.date_min) + " to " + str(self.date_max))
-
-	def predicate(self, game):
-		return ((game.winner in self.winners or "ANY" in self.winners) or \
-		        (game.loser  in self.losers  or "ANY" in self.losers)) and \
-		       (game.winner not in self.exclude_winners) and \
-		       (game.loser  not in self.exclude_losers) and \
-		       game.winner_score <= self.win_score_max and \
-		       game.winner_score >= self.win_score_min and \
-		       game.loser_score  <= self.lose_score_max and \
-		       game.loser_score  >= self.lose_score_min and \
-		       (game.winner_color == self.winner_color or self.winner_color == 'ANY') and \
-		       game.number <= self.number_max and \
-		       game.number >= self.number_min and \
-		       game.date <= self.date_max and \
-		       game.date >= self.date_min

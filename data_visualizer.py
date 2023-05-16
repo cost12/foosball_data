@@ -1,8 +1,22 @@
 import tkinter as tk
 from tkinter import ttk
+from typing import Union
+import pandas as pd
 
 import statcollector as sc
 import event_date
+import gamefilter
+
+"""
+TODO:
+classes needed:
+    Filter
+    FilterView
+    Graph
+    GraphView
+    IndividualView
+    LegendsView
+"""
 
 """
 Main loop for tkinter
@@ -19,6 +33,11 @@ def visualize_foosball(games,dates) -> None:
 
 """
 Decides which frames are displayed
+
+Displays to add
+ - graphs
+ - individual
+ - news/legends
 """
 class StatsViewControl(ttk.Frame):
 
@@ -28,14 +47,23 @@ class StatsViewControl(ttk.Frame):
 
         self.stats = stats
         self.dates = dates
+        self.filter = gamefilter.GameFilter()
         self.view = str('table')
-        self.views = {'table':StatTable(frm,stats),'sim':SimView(frm,stats)}
+        self.views = {'table':      StatTable(frm,stats),
+                      'sim':        SimView(frm,stats),
+                      'filter':     FilterView(frm,self.stats,self.filter,self.dates)}
+                      #'graphs':     [], #TODO: implement these/ come up with more
+                      #'individual': [],
+                      #'legends':    [],
+                      #'records':    []}
 
         self.add_buttons()
 
-        self.views['table'].pack()
-        self.views['sim'].pack()
-        self.views['sim'].forget()
+        for view in self.views:
+            self.views[view].pack()
+        for view in self.views:
+            if not view == 'table':
+                self.views[view].forget()
 
     """
     Add buttons for each view/frame and each semester/timeframe
@@ -52,20 +80,27 @@ class StatsViewControl(ttk.Frame):
             view_frm.columnconfigure(c,weight=1)
             c+=1
 
-        # semester buttons
-        filter_frm = ttk.Frame(self.frm)
-        filter_frm.pack()
-        filter_frm.columnconfigure(0,weight=1)
-        def reset_filt():
-            self.views[self.view].reset_filter()
-        ttk.Button(filter_frm, text='All Time',command=reset_filt).grid(row=0,column=0)
-        c=1
-        for semester in self.dates:
-            def filter(date=semester):
-                self.views[self.view].filter_by_date(date)
-            ttk.Button(filter_frm, text=semester.name,command=filter).grid(row=0,column=c)
-            filter_frm.columnconfigure(c,weight=1)
-            c+=1
+        if 0:
+            # semester buttons
+            filter_frm = ttk.Frame(self.frm)
+            filter_frm.pack()
+            filter_frm.columnconfigure(0,weight=1)
+            def reset_filt():
+                self.stats.reset_filter()
+                for view in self.views:
+                    self.views[view].filter_reset()
+                self.views[self.view].pack()
+            ttk.Button(filter_frm, text='All Time',command=reset_filt).grid(row=0,column=0)
+            c=1
+            for semester in self.dates:
+                def filter(date=semester):
+                    self.stats.filter_by_date(date)
+                    for view in self.views:
+                        self.views[view].filter_applied(date.name)
+                    self.views[self.view].pack()
+                ttk.Button(filter_frm, text=semester.name,command=filter).grid(row=0,column=c)
+                filter_frm.columnconfigure(c,weight=1)
+                c+=1
 
     """
     Reload the current frame
@@ -80,17 +115,15 @@ class StatsViewControl(ttk.Frame):
         if view in self.views and view != self.view:
             self.views[self.view].forget()
             self.view = view
-            #self.views[self.view].tkraise()
+            self.views[self.view].reset()
             self.views[self.view].pack()
 
     """
     Repack the current frame
-    """
+    
     def repack(self) -> None:
         self.views[self.view].pack()
-
-    #def add_view(self,name:str,view) -> None:
-    #    self.views[name] = view
+    """
 
 """
 Interaction and visulization for Simulator
@@ -102,13 +135,13 @@ class SimView(ttk.Frame):
         self.frm = frm
         
         self.stats = stats
-        self.filtered_stats = stats
 
         self.time_str = 'All Time'
+        self.show_probs = True
 
         self.player1=tk.StringVar()
         self.player2=tk.StringVar()
-        self.set_simulator(init=True)
+        self.simulator = self.stats.get_simulator(self.player1.get(),self.player2.get())
 
         self.columnconfigure(0,weight=5)
         self.columnconfigure(1,weight=1)
@@ -225,95 +258,23 @@ class SimView(ttk.Frame):
         self.goals_lbl2.grid(row=r,column=2,sticky='news')
 
         r+=1
-        ttk.Label(self, text='Scrore Probs', anchor='c').grid(row=r,column=1,sticky='news')
+        def toggle():
+            self.show_probs = not self.show_probs
+            self.update_labels()
+        ttk.Button(self, text='Scores', command=toggle).grid(row=r,column=1,sticky='news')
 
-        r += 1
-        # row 12 (0)
-        self.score_0_lbl1 = ttk.Label(self, text=1, anchor='e')
-        self.score_0_lbl1.grid(row=r,column=0,sticky='news')
-        ttk.Label(self,text='0',anchor='c').grid(row=r,column=1,sticky='news')
-        self.score_0_lbl2 = ttk.Label(self, text=1, anchor='w')
-        self.score_0_lbl2.grid(row=r,column=2,sticky='news')
+        self.score_lbls_p1 = []
+        self.score_lbls_p2 = []
+        for i in range(0,11):
+            r += 1
+            p1_lbl = ttk.Label(self, text=0, anchor='e')
+            p1_lbl.grid(row=r,column=0,sticky='news')
+            ttk.Label(self,text=i,anchor='c').grid(row=r,column=1,sticky='news')
+            p2_lbl = ttk.Label(self, text=0, anchor='w')
+            p2_lbl.grid(row=r,column=2,sticky='news')
 
-        r += 1
-        # row 13 (1)
-        self.score_1_lbl1 = ttk.Label(self, text=0, anchor='e')
-        self.score_1_lbl1.grid(row=r,column=0,sticky='news')
-        ttk.Label(self,text='1',anchor='c').grid(row=r,column=1,sticky='news')
-        self.score_1_lbl2 = ttk.Label(self, text=0, anchor='w')
-        self.score_1_lbl2.grid(row=r,column=2,sticky='news')
-        
-        r += 1
-        # row 14 (2)
-        self.score_2_lbl1 = ttk.Label(self, text=0, anchor='e')
-        self.score_2_lbl1.grid(row=r,column=0,sticky='news')
-        ttk.Label(self,text='2',anchor='c').grid(row=r,column=1,sticky='news')
-        self.score_2_lbl2 = ttk.Label(self, text=0, anchor='w')
-        self.score_2_lbl2.grid(row=r,column=2,sticky='news')
-
-        r += 1
-        # row 15 (3)
-        self.score_3_lbl1 = ttk.Label(self, text=0, anchor='e')
-        self.score_3_lbl1.grid(row=r,column=0,sticky='news')
-        ttk.Label(self,text='3',anchor='c').grid(row=r,column=1,sticky='news')
-        self.score_3_lbl2 = ttk.Label(self, text=0, anchor='w')
-        self.score_3_lbl2.grid(row=r,column=2,sticky='news')
-
-        r += 1
-        # row 16 (4)
-        self.score_4_lbl1 = ttk.Label(self, text=0, anchor='e')
-        self.score_4_lbl1.grid(row=r,column=0,sticky='news')
-        ttk.Label(self,text='4',anchor='c').grid(row=r,column=1,sticky='news')
-        self.score_4_lbl2 = ttk.Label(self, text=0, anchor='w')
-        self.score_4_lbl2.grid(row=r,column=2,sticky='news')
-
-        r += 1
-        # row 17 (5)
-        self.score_5_lbl1 = ttk.Label(self, text=0, anchor='e')
-        self.score_5_lbl1.grid(row=r,column=0,sticky='news')
-        ttk.Label(self,text='5',anchor='c').grid(row=r,column=1,sticky='news')
-        self.score_5_lbl2 = ttk.Label(self, text=0, anchor='w')
-        self.score_5_lbl2.grid(row=r,column=2,sticky='news')
-
-        r += 1
-        # row 18 (6)
-        self.score_6_lbl1 = ttk.Label(self, text=0, anchor='e')
-        self.score_6_lbl1.grid(row=r,column=0,sticky='news')
-        ttk.Label(self,text='6',anchor='c').grid(row=r,column=1,sticky='news')
-        self.score_6_lbl2 = ttk.Label(self, text=0, anchor='w')
-        self.score_6_lbl2.grid(row=r,column=2,sticky='news')
-
-        r += 1
-        # row 19 (7)
-        self.score_7_lbl1 = ttk.Label(self, text=0, anchor='e')
-        self.score_7_lbl1.grid(row=r,column=0,sticky='news')
-        ttk.Label(self,text='7',anchor='c').grid(row=r,column=1,sticky='news')
-        self.score_7_lbl2 = ttk.Label(self, text=0, anchor='w')
-        self.score_7_lbl2.grid(row=r,column=2,sticky='news')
-
-        r += 1
-        # row 20 (8)
-        self.score_8_lbl1 = ttk.Label(self, text=0, anchor='e')
-        self.score_8_lbl1.grid(row=r,column=0,sticky='news')
-        ttk.Label(self,text='8',anchor='c').grid(row=r,column=1,sticky='news')
-        self.score_8_lbl2 = ttk.Label(self, text=0, anchor='w')
-        self.score_8_lbl2.grid(row=r,column=2,sticky='news')
-
-        r += 1
-        # row 21 (9)
-        self.score_9_lbl1 = ttk.Label(self, text=0, anchor='e')
-        self.score_9_lbl1.grid(row=r,column=0,sticky='news')
-        ttk.Label(self,text='9',anchor='c').grid(row=r,column=1,sticky='news')
-        self.score_9_lbl2 = ttk.Label(self, text=0, anchor='w')
-        self.score_9_lbl2.grid(row=r,column=2,sticky='news')
-
-        r += 1
-        # row 22 (10)
-        self.score_10_lbl1 = ttk.Label(self, text=0, anchor='e')
-        self.score_10_lbl1.grid(row=r,column=0,sticky='news')
-        ttk.Label(self,text='10',anchor='c').grid(row=r,column=1,sticky='news')
-        self.score_10_lbl2 = ttk.Label(self, text=0, anchor='w')
-        self.score_10_lbl2.grid(row=r,column=2,sticky='news')
+            self.score_lbls_p1.append(p1_lbl)
+            self.score_lbls_p2.append(p2_lbl)
 
     
     """
@@ -328,15 +289,8 @@ class SimView(ttk.Frame):
     Resets the simulator
     """
     def reset(self) -> None:
-        self.set_simulator()
-
-    """
-    Reset the simulator and update the labels
-    """
-    def set_simulator(self,init:bool=False) -> None:
-        self.simulator = self.filtered_stats.get_simulator(self.player1.get(),self.player2.get())
-        if not init:
-            self.update_labels()
+        self.simulator.reset_simulator(self.player1.get(),self.player2.get())
+        self.update_labels()
 
     """
     Simulate a goal
@@ -362,16 +316,14 @@ class SimView(ttk.Frame):
     """
     Filter the games by a date range
     """
-    def filter_by_date(self,date:event_date.EventDate) -> None:
-        self.filtered_stats = self.stats.filter_by_date(date)
-        self.time_str = date.name
+    def filter_applied(self,name:str) -> None:
+        self.time_str = name
         self.reset()
 
     """
     Reset the filter/ go back to games from all time frames
     """
-    def reset_filter(self) -> None:
-        self.filtered_stats = self.stats
+    def filter_reset(self) -> None:
         self.time_str = 'All Time'
         self.reset()
 
@@ -398,67 +350,29 @@ class SimView(ttk.Frame):
         self.goals_lbl1.config(text=self.simulator.get_goals_for(self.simulator.player1))
         self.goals_lbl2.config(text=self.simulator.get_goals_for(self.simulator.player2))
 
-        text = '{:>.3f}'.format(self.simulator.get_prob_of_score(self.simulator.player1,0)*100)
-        self.score_0_lbl1.config(text=text)
-        text = '{:>.3f}'.format(self.simulator.get_prob_of_score(self.simulator.player2,0)*100)
-        self.score_0_lbl2.config(text=text)
-        text = '{:>.3f}'.format(self.simulator.get_prob_of_score(self.simulator.player1,1)*100)
-        self.score_1_lbl1.config(text=text)
-        text = '{:>.3f}'.format(self.simulator.get_prob_of_score(self.simulator.player2,1)*100)
-        self.score_1_lbl2.config(text=text)
-        text = '{:>.3f}'.format(self.simulator.get_prob_of_score(self.simulator.player1,2)*100)
-        self.score_2_lbl1.config(text=text)
-        text = '{:>.3f}'.format(self.simulator.get_prob_of_score(self.simulator.player2,2)*100)
-        self.score_2_lbl2.config(text=text)
-        text = '{:>.3f}'.format(self.simulator.get_prob_of_score(self.simulator.player1,3)*100)
-        self.score_3_lbl1.config(text=text)
-        text = '{:>.3f}'.format(self.simulator.get_prob_of_score(self.simulator.player2,3)*100)
-        self.score_3_lbl2.config(text=text)
-        text = '{:>.3f}'.format(self.simulator.get_prob_of_score(self.simulator.player1,4)*100)
-        self.score_4_lbl1.config(text=text)
-        text = '{:>.3f}'.format(self.simulator.get_prob_of_score(self.simulator.player2,4)*100)
-        self.score_4_lbl2.config(text=text)
-        text = '{:>.3f}'.format(self.simulator.get_prob_of_score(self.simulator.player1,5)*100)
-        self.score_5_lbl1.config(text=text)
-        text = '{:>.3f}'.format(self.simulator.get_prob_of_score(self.simulator.player2,5)*100)
-        self.score_5_lbl2.config(text=text)
-        text = '{:>.3f}'.format(self.simulator.get_prob_of_score(self.simulator.player1,6)*100)
-        self.score_6_lbl1.config(text=text)
-        text = '{:>.3f}'.format(self.simulator.get_prob_of_score(self.simulator.player2,6)*100)
-        self.score_6_lbl2.config(text=text)
-        text = '{:>.3f}'.format(self.simulator.get_prob_of_score(self.simulator.player1,7)*100)
-        self.score_7_lbl1.config(text=text)
-        text = '{:>.3f}'.format(self.simulator.get_prob_of_score(self.simulator.player2,7)*100)
-        self.score_7_lbl2.config(text=text)
-        text = '{:>.3f}'.format(self.simulator.get_prob_of_score(self.simulator.player1,8)*100)
-        self.score_8_lbl1.config(text=text)
-        text = '{:>.3f}'.format(self.simulator.get_prob_of_score(self.simulator.player2,8)*100)
-        self.score_8_lbl2.config(text=text)
-        text = '{:>.3f}'.format(self.simulator.get_prob_of_score(self.simulator.player1,9)*100)
-        self.score_9_lbl1.config(text=text)
-        text = '{:>.3f}'.format(self.simulator.get_prob_of_score(self.simulator.player2,9)*100)
-        self.score_9_lbl2.config(text=text)
-        text = '{:>.3f}'.format(self.simulator.get_prob_of_score(self.simulator.player1,10)*100)
-        self.score_10_lbl1.config(text=text)
-        text = '{:>.3f}'.format(self.simulator.get_prob_of_score(self.simulator.player2,10)*100)
-        self.score_10_lbl2.config(text=text)
+        if self.show_probs:
+            for i in range(0,11):
+                text = '{:>.3f}'.format(self.simulator.get_prob_of_score(self.simulator.player1,i)*100)
+                self.score_lbls_p1[i].config(text=text)
+                text = '{:>.3f}'.format(self.simulator.get_prob_of_score(self.simulator.player2,i)*100)
+                self.score_lbls_p2[i].config(text=text)
+        else:
+            for i in range(0,11):
+                self.score_lbls_p1[i].config(text=self.simulator.get_times_scored_n(self.simulator.player1,i))
+                self.score_lbls_p2[i].config(text=self.simulator.get_times_scored_n(self.simulator.player2,i))
+            
         
-
-
 """
 Interaction and visualization for StatCollector
 """
 class StatTable(ttk.Frame):
 
-    def __init__(self, frm:ttk.Frame, stats:sc.StatCollector, rmax:int=30, filtered:sc.StatCollector=None, sort:list[str]=['W PCT'], asc:bool=False, view:str='players') -> None:
+    def __init__(self, frm:ttk.Frame, stats:sc.StatCollector, rmax:int=30, sort:list[str]=['W PCT'], asc:bool=False, view:str='players') -> None:
         super().__init__(frm)
         
         self.frm = frm
         self.stats = stats
-        if filtered is None:
-            self.filtered_stats = self.stats
-        else:
-            self.filtered_stats = filtered
+        
         self.sort = sort
         self.ascending = asc
         self.view = view
@@ -511,14 +425,17 @@ class StatTable(ttk.Frame):
     """
     def reload(self) -> None:
         self.destroy()
-        self.__init__(self.frm,self.stats,self.rmax,self.filtered_stats,self.sort,self.ascending,self.view)
+        self.__init__(self.frm,self.stats,self.rmax,self.sort,self.ascending,self.view)
         self.pack()
+
+    def reset(self) -> None:
+        self.reload()
 
     """
     Get data from the StatCollector and store it so it can be displayed
     """
-    def get_data(self) -> None:
-        data = self.filtered_stats.get_stats(self.view)
+    def get_data(self) -> pd.DataFrame:
+        data = self.stats.get_stats(self.view)
         for s in self.sort:
             if s not in data.columns:
                 self.sort.remove(s)
@@ -565,26 +482,309 @@ class StatTable(ttk.Frame):
     """ TODO: find a better way than reloading
     Filter the games by a date range
     """
-    def filter_by_date(self,date:event_date.EventDate) -> None:
-        self.filtered_stats = self.stats.filter_by_date(date)
+    def filter_applied(self,name:str) -> None:
         self.reload()
 
     """ TODO: find a better way than reloading
     Reset the filter/ go back to games from all time frames
     """
-    def reset_filter(self) -> None:
-        self.filtered_stats = self.stats
+    def filter_reset(self) -> None:
         self.reload()
 
+"""
+
+"""
+class FilterView(ttk.Frame):
+
+    def __init__(self, frm:ttk.Frame, stats:sc.StatCollector, filter:gamefilter.GameFilter, events:list[event_date.EventDate]=[]) -> None:
+        super().__init__(frm)
+
+        self.frm = frm
+        self.stats = stats
+        self.filter = filter
+        self.events = dict[str,event_date.EventDate]()
+        for event in events:
+            self.events[event.name] = event
+
+        self.count_lbl = ttk.Label(self, text=f'({self.stats.count_filtered(self.filter)} games selected)')
+        self.count_lbl.grid(row=0,column=0,columnspan=4)
+
+        self.player_select = MultiSelector(self, 'Winner Select', stats.list_players())
+        self.player_select.add_listener(self)
+        self.player_select.grid(row=1,column=0,rowspan=4,sticky='news')
+
+        self.player_select = MultiSelector(self, 'Loser Select', stats.list_players())
+        self.player_select.add_listener(self)
+        self.player_select.grid(row=1,column=1,rowspan=4,sticky='news')
+
+        self.player_select = MultiSelector(self, 'Event Select', list(self.events.keys()))
+        self.player_select.add_listener(self)
+        self.player_select.grid(row=1,column=2,rowspan=2,sticky='news')
+
+        self.loser_score_range = RangeAdjustor(self, 'Loser Score', 
+                                               stats.min_score_loss(),     stats.max_score_loss(), 
+                                               stats.min_score_possible(), stats.max_score_possible())
+        self.loser_score_range.add_listener(self)
+        self.loser_score_range.grid(row=1,column=3,sticky='news')
+
+        self.number_range = RangeAdjustor(self, 'Number', 
+                                          stats.min_num_selected(), stats.max_num_selected(), 
+                                          stats.min_num(),          stats.max_num())
+        self.number_range.add_listener(self)
+        self.number_range.grid(row=2,column=3,sticky='news')
+
+        ttk.Button(self,text='Apply',command=self.apply_filter).grid(row=4,column=2)
+        #ttk.Button(self,text='Reset',command=self.reset_filter).grid(row=4,column=3)
+
+    def reset(self) -> None:
+        pass
+
+    def reload(self) -> None:
+        pass
+
+    def apply_filter(self) -> None:
+        self.stats.apply_filter(self.filter)
+        self.count_lbl.config(text=f'({self.stats.count_filtered(self.filter)} games selected)')
+
+    def reset_filter(self) -> None: #TODO: actually reset or just remove
+        self.stats.reset_filter()
+        self.count_lbl.config(text=f'({self.stats.count_filtered(self.filter)} games selected)')
+
+    def filter_applied(self, name) -> None:
+        pass
+
+    def filter_reset(self) -> None:
+        pass
+
+    def update_labels(self) -> None:
+        self.count_lbl.config(text=f'({self.stats.count_filtered(self.filter)} games selected, press Apply to apply)')
+        #self.filter.print()
+
+    """
+    Get notified when an update occurs to a value and handle the update
+    (for RangeAdjustors)
+    """
+    def update_range(self, name, which, value) -> None:
+        if name == 'Loser Score':
+            if which == 'min':
+                self.filter.lose_score_min = value
+                self.update_labels()
+            elif which == 'max':
+                self.filter.lose_score_max = value
+                self.update_labels()
+        elif name == 'Number':
+            if which == 'min':
+                self.filter.number_min = value
+                self.update_labels()
+            elif which == 'max':
+                self.filter.number_max = value
+                self.update_labels()
+
+    """
+    Get notified when an update occurs to a value and handle the update
+    (for MultiSelectors)
+    """
+    def update_value(self, name, value):
+        if name == 'Winner Select':
+            self.filter.winners = set(value)
+            self.update_labels()
+        elif name == 'Loser Select':
+            self.filter.losers = set(value)
+            self.update_labels()
+        elif name == 'Event Select':
+            events = list[event_date.EventDate]()
+            for event in value:
+                events.append(self.events[event])
+            self.filter.date_ranges = events
+            self.update_labels()
 
 
+"""
+
+"""
+class MultiSelector(ttk.Frame):
+
+    def __init__(self, frm:ttk.Frame, name:str, options:list) -> None:
+        super().__init__(frm, borderwidth=2, relief='groove')
+
+        self.frm = frm
+        self.name = name
+        self.options = options
+
+        self.listeners = []
+
+        self.selected = list[tk.IntVar]()
+        self.check_btns = list[ttk.Checkbutton]()
+
+        r = 0
+        ttk.Label(self,text=self.name).grid(row=r,column=0,columnspan=2)
+        r += 1
+        for option in self.options:
+            self.selected.append(tk.IntVar())
+            self.selected[-1].set(1)
+            self.check_btns.append(ttk.Checkbutton(self, text=option, variable=self.selected[-1], onvalue=1, offvalue=0))
+            self.check_btns[-1].state(['!alternate'])
+            self.check_btns[-1].state(['selected'])
+            self.check_btns[-1].grid(row=r,column=0,sticky='news')
+            r += 1
+
+        ttk.Button(self, text='Select All',   command=self.select_all).grid(row=1,column=1)
+        ttk.Button(self, text='Deselect All', command=self.deselect_all).grid(row=2,column=1)
+        ttk.Button(self, text='Apply',        command=self.value_update).grid(row=3,column=1)
+
+    def get_as_list(self) -> list[str]:
+        lis = list[str]()
+        for sel,opt in zip(self.selected,self.options):
+            if sel.get() == 1:
+                lis.append(opt)
+        return lis
 
 
+    def value_update(self) -> None:
+        for listener in self.listeners:
+            listener.update_value(self.name, self.get_as_list())
+
+    def select_all(self) -> None:
+        for btn,sel in zip(self.check_btns,self.selected):
+            btn.state(['selected'])
+            sel.set(1)
+
+    def deselect_all(self) -> None:
+        for btn,sel in zip(self.check_btns,self.selected):
+            btn.state(['!selected'])
+            sel.set(0)
+
+    def add_listener(self, listener) -> None:
+        self.listeners.append(listener)
+
+"""
+UI to adjust a range of values
+"""
+class RangeAdjustor(ttk.Frame):
+
+    def __init__(self, frm:ttk.Frame, name:str, low_val:int=0, high_val:int=10, min_val:Union[int,None]=None, max_val:Union[int,None]=None):
+        super().__init__(frm, borderwidth=2, relief='sunken')
+
+        assert min_val <= low_val <= high_val <= max_val
+
+        self.frm = frm
+        self.name = name
+        self.low_val = low_val
+        self.high_val = high_val
+        self.min_val = min_val
+        self.max_val = max_val
+
+        self.listeners = []
+
+        r = 0
+        ttk.Label(self,text=self.name,anchor='c').grid(row=r,column=1,sticky='news')
+        r += 1
+        self.min_adj = ValueAdjustor(self,'min',self.low_val,self.min_val,self.high_val)
+        self.min_adj.grid(row=r,column=0,sticky='news')
+        self.min_adj.add_listener(self)
+        self.max_adj = ValueAdjustor(self,'max',self.high_val,self.low_val,self.max_val)
+        self.max_adj.grid(row=r,column=2,sticky='news')
+        self.max_adj.add_listener(self)
+
+    """
+    Adds a listener that will be notified when value is changed
+    """
+    def add_listener(self, listener) -> None:
+        self.listeners.append(listener)
+
+    """
+    Updates the listeners based on a value change
+    """
+    def __update_listeners(self, which, value) -> None:
+        for listener in self.listeners:
+            listener.update_range(self.name, which, value)
+    
+    """
+    Handles an update to one of the values
+    """
+    def update_value(self, name:str, value:int):
+        if name == 'min':
+            self.min_val = value
+            self.max_adj.set_min(value)
+        elif name == 'max':
+            self.max_val = value
+            self.min_adj.set_max(value)
+        self.__update_listeners(name,value)
 
 
+"""
+UI to adjust a value with an optional min/max 
+"""
+class ValueAdjustor(ttk.Frame):
+    
+    def __init__(self, frm:ttk.Frame, name:str, cur_val:int=0, min_val:Union[int,None]=None, max_val:Union[int,None]=None) -> None:
+        super().__init__(frm, borderwidth=2, relief='raised')
 
+        assert min_val <= cur_val <= max_val
 
+        self.frm = frm
+        self.name = name
+        self.value = cur_val
+        self.max_val = max_val
+        self.min_val = min_val
 
+        self.listeners = []
+
+        r = 0
+        ttk.Label(self,text=self.name,anchor='c').grid(row=r,column=1,sticky='news')
+        r += 1
+        ttk.Button(self,text='-',command=self.decrease).grid(row=r,column=0,sticky='news')
+        self.val_lbl = ttk.Label(self,text=self.value,anchor='c')
+        self.val_lbl.grid(row=r,column=1,sticky='news')
+        ttk.Button(self,text='+',command=self.increase).grid(row=r,column=2,sticky='news')
+
+    """
+    Adds a listener that will be notified when value is changed
+    """
+    def add_listener(self, listener) -> None:
+        self.listeners.append(listener)
+
+    """
+    Updates lables to show current values
+    """
+    def update_labels(self) -> None:
+        self.val_lbl.config(text=self.value)
+        for listener in self.listeners:
+            listener.update_value(self.name, self.value)
+
+    """
+    If it's within range, decreases the value and updates the label
+    """
+    def decrease(self) -> None:
+        if self.min_val is None or self.value > self.min_val:
+            self.value -= 1
+            self.update_labels()
+
+    """
+    If it's withing range, increases the value and updates the label
+    """
+    def increase(self) -> None:
+        if self.max_val is None or self.value < self.max_val:
+            self.value += 1
+            self.update_labels()
+
+    """
+    Sets the min value to a new value and updates the current value as necessary
+    """
+    def set_min(self, new_min:Union[int,None]) -> None:
+        self.min_val = new_min
+        if self.min_val is not None and self.min_val > self.value:
+            self.value = self.min_val
+            self.update_labels()
+
+    """
+    Sets the max value to a new value and updates the current value as necessary
+    """
+    def set_max(self, new_max:Union[int,None]) -> None:
+        self.max_val = new_max
+        if self.max_val is not None and self.max_val < self.value:
+            self.value = self.max_val
+            self.update_labels()
 
 
 

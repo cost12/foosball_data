@@ -1,3 +1,5 @@
+#https://towardsdatascience.com/generate-sports-rankings-with-data-science-4dd1979571da
+
 import numpy as np
 
 import foosballgame
