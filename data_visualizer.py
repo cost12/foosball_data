@@ -10,6 +10,8 @@ import event_date
 import gamefilter
 import graphsyousee
 import foosballgame
+import colley
+import elo
 
 """
 TODO:
@@ -635,7 +637,7 @@ class GraphView(ttk.Frame):
         self.stats = stats
 
         self.supported_xs = ['date','number']
-        self.supported_ys = ['wins','goals']#,'colley rank','elo']
+        self.supported_ys = ['wins','goals','colley win rank', 'colley goal rank', 'elo']
 
         self.players_to_show = MultiSelector(self,"Players",self.stats.list_players())
         self.players_to_show.add_listener(self)
@@ -649,7 +651,7 @@ class GraphView(ttk.Frame):
         self.y_choice.add_listener(self)
         self.y_choice.grid(row=1,column=1,sticky='news')
 
-        self.graph = graphsyousee.create_foosball_graph('Title',self.x_choice.get_selected(),self.y_choice.get_selected(),
+        self.graph = graphsyousee.create_foosball_graph(f'{self.y_choice.get_selected()} by {self.x_choice.get_selected()}',self.x_choice.get_selected(),self.y_choice.get_selected(),
                                                         self.players_to_show.get_as_list(),
                                                         self.get_x_axis(),
                                                         self.get_y_axis())
@@ -683,10 +685,15 @@ class GraphView(ttk.Frame):
             return graphsyousee.get_list_over_range(self.stats.filtered,self.get_x_axis(),self.players_to_show.get_as_list(),
                                                     lambda games:foosballgame.get_goals_scored_for_all(games),self.x_choice.get_selected()=='date',
                                                     lambda x: x[0])
-        elif choice == 'colley rank':
-            pass
+        elif choice == 'colley win rank':
+            return colley.get_rankings_list(self.stats.filtered,self.get_x_axis(),self.players_to_show.get_as_list(),
+                                            is_daily=self.x_choice.get_selected()=='date',by_wins=True)
+        elif choice == 'colley goal rank':
+            return colley.get_rankings_list(self.stats.filtered,self.get_x_axis(),self.players_to_show.get_as_list(),
+                                            is_daily=self.x_choice.get_selected()=='date',by_wins=False)
         elif choice == 'elo':
-            pass
+            return elo.get_rankings_list(self.stats.filtered,self.get_x_axis(),self.players_to_show.get_as_list(),
+                                         is_daily=self.x_choice.get_selected()=='date')
         else:
             print(f"ERROR: unknown y axis {choice}")
 
@@ -697,7 +704,7 @@ class GraphView(ttk.Frame):
         matplotlib.pyplot.close(self.graph)
         self.graph_display.get_tk_widget().destroy()
         
-        self.graph = graphsyousee.create_foosball_graph('Title',self.x_choice.get_selected(),self.y_choice.get_selected(),
+        self.graph = graphsyousee.create_foosball_graph(f'{self.y_choice.get_selected()} by {self.x_choice.get_selected()}',self.x_choice.get_selected(),self.y_choice.get_selected(),
                                                         self.players_to_show.get_as_list(),
                                                         self.get_x_axis(),
                                                         self.get_y_axis())

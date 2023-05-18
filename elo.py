@@ -115,3 +115,31 @@ class ELO_Calculator():
         if player not in self.goal_ratings:
             return self.initial_rating
         return int(self.goal_ratings[player])
+
+"""
+Returns the rankings formatted for graph output
+"""
+def get_rankings_list(games:list[foosballgame.FoosballGame], xlist:list, players:list[str], is_daily:bool, by_wins:bool = True) -> dict[str:float]:
+    rankings = {}
+    elo_tracker = ELO_Calculator()
+    game_ind = 0
+    
+    for player in players:
+        rankings[player] = []
+        
+    for x in xlist:
+        while game_ind < len(games) and ((is_daily and games[game_ind].date <= x) or ((not is_daily) and games[game_ind].number <= x)):
+            elo_tracker.add_game(games[game_ind])
+            game_ind += 1
+        for player in players:
+            if by_wins:
+                if player in elo_tracker.game_ratings:
+                    rankings[player].append(elo_tracker.game_ratings[player])
+                else:
+                    rankings[player].append(0)
+            else:
+                if player in elo_tracker.goal_ratings:
+                    rankings[player].append(elo_tracker.goal_ratings[player])
+                else:
+                    rankings[player].append(0)
+    return rankings

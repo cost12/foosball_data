@@ -6,13 +6,13 @@ import foosballgame
 
 # if by_wins is false, ranking will be by score
 # optionally pass in weights for games
-def get_colley_rankings(games, by_wins = True, weighting = None):
+def get_colley_rankings(games, by_wins = True, weighting = None, as_dict=False) -> dict[str,dict[str,str|float]]:
 	players = list(foosballgame.get_player_range(games))
 	c,b = __get_matrices(games,players,by_wins,weighting)
 	by = 'W'
 	if not by_wins:
 		by = 'G'
-	return __calculate_values(c,b,players,by)
+	return __calculate_values(c,b,players,by,as_dict)
 
 def get_colley_from_df(df,by='W'):
 	players = list(df['Name'].unique())
@@ -20,7 +20,7 @@ def get_colley_from_df(df,by='W'):
 	c,b = __matrices_from_df(df,by)
 	return __calculate_values(c,b,players,by)
 	
-def __calculate_values(c,b,players,by):
+def __calculate_values(c,b,players,by,as_dict):
 	diag = c.diagonal() + 2
 	np.fill_diagonal(c, diag)
 
@@ -30,10 +30,16 @@ def __calculate_values(c,b,players,by):
 
 	r = np.linalg.solve(c, b)
 
-	rankings = {}
-	for i in range(0,len(players)):
-		rankings[players[i]] = {'Name':players[i], str(by)+' RANK':r[i]}
-	return rankings
+	if as_dict:
+		rankings = {}
+		for i in range(0,len(players)):
+			rankings[players[i]] = r[i]
+		return rankings
+	else:
+		rankings = {}
+		for i in range(0,len(players)):
+			rankings[players[i]] = {'Name':players[i], str(by)+' RANK':r[i]}
+		return rankings
 
 def __matrices_from_df(df, players, by='W'):
 	num_players = len(players)
@@ -106,7 +112,7 @@ def nice_print(rankings):
 		print("\t" + line)
 
 
-def get_rankings_list(games, xlist, players, is_daily, by_wins):
+def get_rankings_list(games, xlist, players, is_daily, by_wins) -> dict[str:float]:
 	rankings = {}
 
 	for player in players:
@@ -117,7 +123,7 @@ def get_rankings_list(games, xlist, players, is_daily, by_wins):
 		for game in games:
 			if (is_daily and game.date <= x) or ((not is_daily) and game.number <= x):
 				temp.append(game)
-		temp_ranks = get_colley_rankings(temp, by_wins = by_wins)
+		temp_ranks = get_colley_rankings(temp, by_wins = by_wins,as_dict=True)
 		for player in players:
 			if player in temp_ranks.keys():
 				rankings[player].append(temp_ranks[player])
