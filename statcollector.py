@@ -1,5 +1,6 @@
 import pandas as pd
 import random
+import datetime
 
 import foosballgame
 import gameinfo
@@ -224,6 +225,16 @@ class StatCollector:
         self.__uses_dicts()
         return list(self.individual_dict.keys())
     
+    def list_numbers(self) -> list[int]:
+        return [x.number for x in self.filtered]
+
+    def list_dates(self) -> list[datetime.date]:
+        dates = []
+        for game in self.filtered:
+            if len(dates) == 0 or not (dates[-1] == game.date):
+                dates.append(game.date)
+        return dates
+
     """
     Returns the number of goals player1 has scored on player2
     """

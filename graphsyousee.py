@@ -2,8 +2,10 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-
-def create_foosball_graph(name, xlabel, ylabel, players, xlist, rankings, filename, remove_zeros=True, ignore_players=[], scatter=False):
+"""
+Creates and returns a formatted graph
+"""
+def create_foosball_graph(name:str, xlabel:str, ylabel:str, players:list[str], xlist:list, rankings:dict[str,list], remove_zeros:bool=True, ignore_players:list[str]=[], scatter:bool=False):
 	fig = plt.figure()
 	plt.title(name)
 	plt.xlabel(xlabel)
@@ -27,12 +29,17 @@ def create_foosball_graph(name, xlabel, ylabel, players, xlist, rankings, filena
 			plt.annotate(xy=(new_x[-1], new_y[-1]), xytext=(20,0), textcoords='offset points', text=player, va='center')
 	plt.gca().tick_params(axis='x', labelrotation = 90)
 	fig.tight_layout()
-	fig.savefig("graphs/" + filename)
+	return fig
+	#fig.savefig("graphs/" + filename)
 
+"""
+Creates a list for each player in players
+function: computes a statistic from a list of games, returns a map from players to their value
 
+"""
 def get_list_over_range(games, xlist, players, function, is_daily, modifier=lambda x : x):
 	player_lists = {}
-
+	# create a list for each player over the x values
 	for player in players:
 		player_lists[player] = []
 	
@@ -49,3 +56,7 @@ def get_list_over_range(games, xlist, players, function, is_daily, modifier=lamb
 			else:
 				player_lists[player].append(0)
 	return player_lists
+
+"""
+
+"""

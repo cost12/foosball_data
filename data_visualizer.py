@@ -2,10 +2,14 @@ import tkinter as tk
 from tkinter import ttk
 from typing import Union
 import pandas as pd
+import matplotlib.pyplot
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 import statcollector as sc
 import event_date
 import gamefilter
+import graphsyousee
+import foosballgame
 
 """
 TODO:
@@ -49,13 +53,13 @@ class StatsViewControl(ttk.Frame):
         self.dates = dates
         self.filter = gamefilter.GameFilter()
         self.view = str('table')
-        self.views = {'table':      StatTable(frm,stats),
-                      'sim':        SimView(frm,stats),
-                      'filter':     FilterView(frm,self.stats,self.filter,self.dates)}
-                      #'graphs':     [], #TODO: implement these/ come up with more
+        self.views = {'table':      StatTable(frm,self.stats),
+                      'sim':        SimView(frm,self.stats),
+                      'graphs':     GraphView(frm,self.stats), #TODO: implement these/ come up with more
                       #'individual': [],
                       #'legends':    [],
-                      #'records':    []}
+                      #'records':    [],
+                      'filter':     FilterView(frm,self.stats,self.filter,self.dates)}
 
         self.add_buttons()
 
@@ -104,9 +108,10 @@ class StatsViewControl(ttk.Frame):
 
     """
     Reload the current frame
-    """
+
     def reload(self) -> None:
         self.views[self.view].reload()
+    """
 
     """
     Change from one frame to another
@@ -361,7 +366,6 @@ class SimView(ttk.Frame):
                 self.score_lbls_p1[i].config(text=self.simulator.get_times_scored_n(self.simulator.player1,i))
                 self.score_lbls_p2[i].config(text=self.simulator.get_times_scored_n(self.simulator.player2,i))
             
-        
 """
 Interaction and visualization for StatCollector
 """
@@ -492,7 +496,7 @@ class StatTable(ttk.Frame):
         self.reload()
 
 """
-
+Interaction and visualization for a filter
 """
 class FilterView(ttk.Frame):
 
@@ -536,26 +540,47 @@ class FilterView(ttk.Frame):
         ttk.Button(self,text='Apply',command=self.apply_filter).grid(row=4,column=2)
         #ttk.Button(self,text='Reset',command=self.reset_filter).grid(row=4,column=3)
 
+    """
+    Called by ViewControl
+    """
     def reset(self) -> None:
         pass
 
+    """
+    Called by ViewControl
+    """
     def reload(self) -> None:
         pass
 
+    """
+    Apply the chosen filter to the stats
+    """
     def apply_filter(self) -> None:
         self.stats.apply_filter(self.filter)
         self.count_lbl.config(text=f'({self.stats.count_filtered(self.filter)} games selected)')
 
+    """
+    Reset the stats to the default filter
+    """
     def reset_filter(self) -> None: #TODO: actually reset or just remove
         self.stats.reset_filter()
         self.count_lbl.config(text=f'({self.stats.count_filtered(self.filter)} games selected)')
 
+    """
+    Called by ViewControl to notify that a filter has been applied -- probably not used anymore
+    
     def filter_applied(self, name) -> None:
         pass
 
+    
+    Called by ViewControl to notify that a filter reset -- probably not used anymore
+    
     def filter_reset(self) -> None:
         pass
-
+    """
+    """
+    Update the labels to reflect the current state
+    """
     def update_labels(self) -> None:
         self.count_lbl.config(text=f'({self.stats.count_filtered(self.filter)} games selected, press Apply to apply)')
         #self.filter.print()
@@ -598,9 +623,102 @@ class FilterView(ttk.Frame):
             self.filter.date_ranges = events
             self.update_labels()
 
+"""
+Interaction and visualization for creating graphs
+"""
+class GraphView(ttk.Frame):
+
+    def __init__(self, frm:ttk.Frame, stats:sc.StatCollector):
+        super().__init__(frm)
+        
+        self.frm = frm
+        self.stats = stats
+
+        self.supported_xs = ['date','number']
+        self.supported_ys = ['wins','goals']#,'colley rank','elo']
+
+        self.players_to_show = MultiSelector(self,"Players",self.stats.list_players())
+        self.players_to_show.add_listener(self)
+        self.players_to_show.grid(row=0,column=0,sticky='news',rowspan=2)
+
+        self.x_choice = SingleSelector(self,"x axis",self.supported_xs)
+        self.x_choice.add_listener(self)
+        self.x_choice.grid(row=0,column=1,sticky='news')
+
+        self.y_choice = SingleSelector(self,"y axis",self.supported_ys)
+        self.y_choice.add_listener(self)
+        self.y_choice.grid(row=1,column=1,sticky='news')
+
+        self.graph = graphsyousee.create_foosball_graph('Title',self.x_choice.get_selected(),self.y_choice.get_selected(),
+                                                        self.players_to_show.get_as_list(),
+                                                        self.get_x_axis(),
+                                                        self.get_y_axis())
+        self.graph_display = FigureCanvasTkAgg(self.graph,self)
+        self.graph_display.draw()
+        self.graph_display.get_tk_widget().grid(row=0,column=2,sticky='news',rowspan=2)
+
+    """
+    
+    """
+    def update_value(self, name, value):
+        # doesn't really matter what was updated, time to redraw the graph
+        self.reset()
+
+    def get_x_axis(self) -> list:
+        choice = self.x_choice.get_selected()
+        if choice == 'date':
+            return self.stats.list_dates()
+        elif choice == 'number':
+            return self.stats.list_numbers()
+        else:
+            print(f"ERROR: unknown x axis {choice}")
+        
+    def get_y_axis(self) -> dict[str,list]:
+        choice = self.y_choice.get_selected()
+        if choice == 'wins':
+            return graphsyousee.get_list_over_range(self.stats.filtered,self.get_x_axis(),self.players_to_show.get_as_list(),
+                                                    lambda games:foosballgame.get_records(games),self.x_choice.get_selected()=='date',
+                                                    lambda x: x[0])
+        elif choice == 'goals':
+            return graphsyousee.get_list_over_range(self.stats.filtered,self.get_x_axis(),self.players_to_show.get_as_list(),
+                                                    lambda games:foosballgame.get_goals_scored_for_all(games),self.x_choice.get_selected()=='date',
+                                                    lambda x: x[0])
+        elif choice == 'colley rank':
+            pass
+        elif choice == 'elo':
+            pass
+        else:
+            print(f"ERROR: unknown y axis {choice}")
+
+    """
+    Should update labels/check stats for any changes
+    """ 
+    def reset(self) -> None:
+        matplotlib.pyplot.close(self.graph)
+        self.graph_display.get_tk_widget().destroy()
+        
+        self.graph = graphsyousee.create_foosball_graph('Title',self.x_choice.get_selected(),self.y_choice.get_selected(),
+                                                        self.players_to_show.get_as_list(),
+                                                        self.get_x_axis(),
+                                                        self.get_y_axis())
+        self.graph_display = FigureCanvasTkAgg(self.graph,self)
+        self.graph_display.draw()
+        self.graph_display.get_tk_widget().grid(row=0,column=2,sticky='news',rowspan=2)
+
+    """
+    Delete and recreate itself -- probably not needed
+    """
+    def reload(self) -> None:
+        pass
+
+    """
+    Update labels to reflect current internal state -- no labels to update I think
+    """
+    def update_labels(self) -> None:
+        pass
 
 """
-
+Select values from a list of values
 """
 class MultiSelector(ttk.Frame):
 
@@ -632,6 +750,9 @@ class MultiSelector(ttk.Frame):
         ttk.Button(self, text='Deselect All', command=self.deselect_all).grid(row=2,column=1)
         ttk.Button(self, text='Apply',        command=self.value_update).grid(row=3,column=1)
 
+    """
+    Return the selected values as a list
+    """
     def get_as_list(self) -> list[str]:
         lis = list[str]()
         for sel,opt in zip(self.selected,self.options):
@@ -639,21 +760,80 @@ class MultiSelector(ttk.Frame):
                 lis.append(opt)
         return lis
 
-
+    """
+    Notify any listeners that the values have been updated
+    Passes the list of selected values to all listeners
+    """
     def value_update(self) -> None:
         for listener in self.listeners:
             listener.update_value(self.name, self.get_as_list())
 
+    """
+    Selects all values
+    """
     def select_all(self) -> None:
         for btn,sel in zip(self.check_btns,self.selected):
             btn.state(['selected'])
             sel.set(1)
 
+    """
+    Deselects all values
+    """
     def deselect_all(self) -> None:
         for btn,sel in zip(self.check_btns,self.selected):
             btn.state(['!selected'])
             sel.set(0)
 
+    """
+    Adds a listener that will be updated everytime different values are selected
+    Listeners use update_value(name, value) to listen
+    """
+    def add_listener(self, listener) -> None:
+        self.listeners.append(listener)
+
+"""
+Select a value from a list of values
+"""
+class SingleSelector(ttk.Frame):
+
+    def __init__(self, frm:ttk.Frame, name:str, options:list) -> None:
+        super().__init__(frm, borderwidth=2, relief='groove')
+
+        self.frm = frm
+        self.name = name
+        self.options = options
+
+        self.listeners = []
+
+        self.selected = tk.StringVar()
+
+        r = 0
+        ttk.Label(self,text=self.name).grid(row=r,column=0,columnspan=2)
+        r += 1
+        for option in self.options:
+            ttk.Radiobutton(self, text=option, variable=self.selected, value=option).grid(row=r,column=0,sticky='news')
+            r += 1
+        self.selected.set(self.options[0])
+        ttk.Button(self, text='Apply', command=self.value_update).grid(row=1,column=1)
+
+    """
+    Return the selected value
+    """
+    def get_selected(self) -> str:
+        return self.selected.get()
+
+    """
+    Notify any listeners that the values have been updated
+    Passes the list of selected values to all listeners
+    """
+    def value_update(self) -> None:
+        for listener in self.listeners:
+            listener.update_value(self.name, self.get_selected())
+
+    """
+    Adds a listener that will be updated everytime different values are selected
+    Listeners use update_value(name, value) to listen
+    """
     def add_listener(self, listener) -> None:
         self.listeners.append(listener)
 
@@ -788,68 +968,30 @@ class ValueAdjustor(ttk.Frame):
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 """
-class ScrollableFrame(ttk.Frame):
-    def __init__(self, parent, *args, **kw):
-        ttk.Frame.__init__(self, parent, *args, **kw)
+#
+Skeleton Class
+#
+class View(ttk.Frame):
 
-        # Create a canvas object and a vertical scrollbar for scrolling it.
-        vscrollbar = ttk.Scrollbar(self, orient=VERTICAL)
-        vscrollbar.pack(fill=Y, side=RIGHT, expand=FALSE)
-        canvas = Canvas(self, bd=0, highlightthickness=0,
-                           yscrollcommand=vscrollbar.set)
-        canvas.pack(side=LEFT, fill=BOTH, expand=TRUE)
-        vscrollbar.config(command=canvas.yview)
+    def __init__(self, frm:ttk.Frame, stats:sc.StatCollector):
+        super().__init__(frm)
+        
+        self.frm = frm
+        self.stats = stats
 
-        # Reset the view
-        canvas.xview_moveto(0)
-        canvas.yview_moveto(0)
+    #
+    Should update labels/check stats for any changes
+    #
+    def reset(self) -> None:
+        pass
 
-        # Create a frame inside the canvas which will be scrolled with it.
-        self.scrollable_frame = interior = ttk.Frame(canvas)
-        interior_id = canvas.create_window(0, 0, window=interior,
-                                           anchor=NW)
+    #
+    Delete and recreate itself -- probably not needed
+    #
+    def reload(self) -> None:
+        pass
 
-        # Track changes to the canvas and frame width and sync them,
-        # also updating the scrollbar.
-        def _configure_interior(event):
-            # Update the scrollbars to match the size of the inner frame.
-            size = (interior.winfo_reqwidth(), interior.winfo_reqheight())
-            canvas.config(scrollregion="0 0 %s %s" % size)
-            if interior.winfo_reqwidth() != canvas.winfo_width():
-                # Update the canvas's width to fit the inner frame.
-                canvas.config(width=interior.winfo_reqwidth())
-        interior.bind('<Configure>', _configure_interior)
-
-        def _configure_canvas(event):
-            if interior.winfo_reqwidth() != canvas.winfo_width():
-                # Update the inner frame's width to fill the canvas.
-                canvas.itemconfigure(interior_id, width=canvas.winfo_width())
-        canvas.bind('<Configure>', _configure_canvas)
+    def update_labels(self) -> None:
+        pass
 """
