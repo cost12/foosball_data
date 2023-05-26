@@ -12,6 +12,7 @@ import graphsyousee
 import foosballgame
 import colley
 import elo
+import individual
 
 """
 TODO:
@@ -58,9 +59,10 @@ class StatsViewControl(ttk.Frame):
         self.views = {'table':      StatTable(frm,self.stats),
                       'sim':        SimView(frm,self.stats),
                       'graphs':     GraphView(frm,self.stats), #TODO: implement these/ come up with more
-                      #'individual': [],
+                      'individual': IndividualView(frm,self.stats),
                       #'legends':    [],
                       #'records':    [],
+                      #'overview':   [],
                       'filter':     FilterView(frm,self.stats,self.filter,self.dates)}
 
         self.add_buttons()
@@ -382,41 +384,52 @@ class StatTable(ttk.Frame):
         self.sort = sort
         self.ascending = asc
         self.view = view
-        self.rmax = rmax
+        self.max_rows = rmax
+        self.start_row = 0
+        self.num_rows = 0
         
         self.highlight = 'white'
         self.background = 'gray'
 
+        self.labels = list[list[ttk.Label]]()
+        self.buttons = list[ttk.Button]()
+        self.end_btns = list[ttk.Button]()
+
         data = self.get_data()
 
-        self.columnconfigure(0,weight=1)
-        self.rowconfigure(0,weight=1)
-        # headers
-        for c in range(len(data.columns)):
-            self.columnconfigure(c+1,weight=1) # for filling vertically
-            header = data.columns[c]
-            btn = ttk.Button(self, text=header,command=self.__sort_call(header))
-            btn.grid(row=0, column=c+1,sticky='news')
+        if 0:
+            # headers
+            for c in range(len(data.columns)):
+                header = data.columns[c]
+                btn = ttk.Button(self, text=header,command=self.__sort_call(header))
+                btn.grid(row=0, column=c+1,sticky='news')
+                self.buttons.append(btn)
+            
+            self.num_rows = min(data.shape[0]-self.start_row,self.max_rows)
+            for r in range(self.num_rows):
+                # numbers
+                nlbl = ttk.Label(self, text=r+1, anchor='e')
+                nlbl.grid(row=r+1, column=0,sticky='news')
+                
+                self.labels.append([])
+                self.labels[-1].append(nlbl)
 
-        for r in range(min(data.shape[0],self.rmax)):
-            self.rowconfigure(r+1,weight=1) # for filling horizontally
-            # numbers
-            lbl = ttk.Label(self, text=r+1, anchor='e')
-            lbl.grid(row=r+1, column=0,sticky='news')
-
-            # body
-            for c in range(len(data.iloc[r])):
-                background = self.background
-                if len(self.sort) > 0 and self.sort[0] == data.columns[c]:
-                    background = self.highlight
-                text = data.iloc[r][c]
-                anchor = 'e'
-                if isinstance(text,str):
-                    anchor = 'w'
-                if isinstance(text,float):
-                    text = '{:>.3f}'.format(text)
-                lbl = ttk.Label(self, text=text, anchor=anchor,background=background)
-                lbl.grid(row=r+1, column=c+1,sticky='news')
+                # body
+                for c in range(len(data.iloc[r])):
+                    background = self.background
+                    if len(self.sort) > 0 and self.sort[0] == data.columns[c]:
+                        background = self.highlight
+                    text = data.iloc[r+self.start_row][c]
+                    anchor = 'e'
+                    if isinstance(text,str):
+                        anchor = 'w'
+                    if isinstance(text,float):
+                        text = '{:>.3f}'.format(text)
+                    lbl = ttk.Label(self, text=text, anchor=anchor,background=background)
+                    lbl.grid(row=r+1, column=c+1,sticky='news')
+                    self.labels[-1].append(lbl)
+        else:
+            r = 0
 
         c=0
         for stat in self.stats.list_stats():
@@ -424,18 +437,113 @@ class StatTable(ttk.Frame):
                 self.set_view(v)
             btn = ttk.Button(self, text=stat,command=set_v)
             btn.grid(row=r+2,column=c,sticky='news')
+            self.end_btns.append(btn)
             c += 1
+        btn = ttk.Button(self,text='prev',command=self.prev_page)
+        btn.grid(row=r+2,column=c+1,sticky='news')
+        self.end_btns.append(btn)
+        btn = ttk.Button(self,text='next',command=self.next_page)
+        btn.grid(row=r+2,column=c+2,sticky='news')
+        self.end_btns.append(btn)
 
-    """ TODO: instead of reloading every time, find a way to just change the labels
-    Reload, currently used to update the view
+        self.update_labels()
+        
+
+    """ 
+    Destroys and recreats the object
     """
     def reload(self) -> None:
         self.destroy()
-        self.__init__(self.frm,self.stats,self.rmax,self.sort,self.ascending,self.view)
+        self.__init__(self.frm,self.stats,self.max_rows,self.sort,self.ascending,self.view)
         self.pack()
 
+    """
+    Called to update labels quickly
+    """
     def reset(self) -> None:
-        self.reload()
+        self.start_row = 0
+        self.update_labels()
+
+    """
+    Update the table values without having to delete/ redraw
+    """
+    def update_labels(self) -> None:
+        data = self.get_data()
+        prev_rows = self.num_rows
+        self.num_rows = min(data.shape[0]-self.start_row,self.max_rows)
+
+        for c in range(len(data.columns)):
+            header = data.columns[c]
+            if c < len(self.buttons):
+                self.buttons[c].config(text=header,command=self.__sort_call(header))
+            else:
+                btn = ttk.Button(self, text=header,command=self.__sort_call(header))
+                btn.grid(row=0, column=c+1,sticky='news')
+                self.buttons.append(btn)
+
+        # remove excess from buttons and labels
+        len_btns = c+1
+        if len(self.buttons) > len_btns:
+            for r in range(len(self.labels)):
+                for c in range(len_btns,len(self.buttons)):
+                    self.labels[r][c+1].destroy() # +1 because of number labels
+                self.labels[r] = self.labels[r][:c+1]
+            for c in range(len_btns,len(self.buttons)):
+                self.buttons[c].destroy()
+            self.buttons = self.buttons[:len_btns]
+
+        for r in range(self.num_rows):
+            if r >= prev_rows:
+                nlbl = ttk.Label(self, text=self.start_row+r+1, anchor='e')
+                nlbl.grid(row=r+1, column=0,sticky='news')
+
+                self.labels.append([])
+                self.labels[-1].append(nlbl)
+            else:
+                self.labels[r][0].config(text=self.start_row+r+1)
+            for c in range(len(data.iloc[r])):
+                background = self.background
+                if len(self.sort) > 0 and self.sort[0] == data.columns[c]:
+                    background = self.highlight
+                text = data.iloc[r+self.start_row][c]
+                anchor = 'e'
+                if isinstance(text,str):
+                    anchor = 'w'
+                if isinstance(text,float):
+                    text = '{:>.3f}'.format(text)
+                if r < prev_rows:
+                    self.labels[r][c+1].config(text=text,background=background,anchor=anchor)
+                else:
+                    lbl = ttk.Label(self, text=text, anchor=anchor,background=background)
+                    lbl.grid(row=r+1, column=c+1,sticky='news')
+                    self.labels[-1].append(lbl)
+        # remove excess
+        if self.num_rows < prev_rows:
+            for r in range(self.num_rows,prev_rows):
+                for lbl in self.labels[r]:
+                    lbl.destroy()
+            self.labels = self.labels[:self.num_rows]
+        elif self.num_rows > prev_rows:
+            c = 0
+            for btn in self.end_btns:
+                if c == len(self.end_btns)-2:
+                    c += 1
+                btn.grid(row=self.num_rows+2,column=c,sticky='news')
+                c += 1
+
+    """
+    Advance to the next page/ see more stats
+    """
+    def next_page(self) -> None:
+        self.start_row += self.max_rows
+        self.update_labels()
+
+    """
+    Go back to the previous page
+    """
+    def prev_page(self) -> None:
+        self.start_row = max(self.start_row-self.max_rows,0)
+        self.update_labels()
 
     """
     Get data from the StatCollector and store it so it can be displayed
@@ -465,7 +573,7 @@ class StatTable(ttk.Frame):
         self.sort.insert(0,n)
         if ascending is not None:
             self.ascending = ascending
-        self.reload()
+        self.reset()
 
     """
     This is called when a button is clicked to sort the data
@@ -483,19 +591,19 @@ class StatTable(ttk.Frame):
     def set_view(self, view:str) -> None:
         if self.view != view:
             self.view = view
-            self.reload()
+            self.reset()
 
     """ TODO: find a better way than reloading
     Filter the games by a date range
     """
     def filter_applied(self,name:str) -> None:
-        self.reload()
+        self.reset()
 
     """ TODO: find a better way than reloading
     Reset the filter/ go back to games from all time frames
     """
     def filter_reset(self) -> None:
-        self.reload()
+        self.reset()
 
 """
 Interaction and visualization for a filter
@@ -636,7 +744,7 @@ class GraphView(ttk.Frame):
         self.frm = frm
         self.stats = stats
 
-        self.supported_xs = ['date','number']
+        self.supported_xs = ['date','number','game']
         self.supported_ys = ['wins','goals','colley win rank', 'colley goal rank', 'elo']
 
         self.players_to_show = MultiSelector(self,"Players",self.stats.list_players())
@@ -666,33 +774,44 @@ class GraphView(ttk.Frame):
         # doesn't really matter what was updated, time to redraw the graph
         self.reset()
 
+    def get_x_cutoffs(self) -> list:
+        choice = self.x_choice.get_selected()
+        if choice == 'date':
+            return self.stats.list_dates()
+        elif choice in ['number','game']:
+            return self.stats.list_numbers()
+        else:
+            print(f"ERROR: unknown x axis {choice}")
+
     def get_x_axis(self) -> list:
         choice = self.x_choice.get_selected()
         if choice == 'date':
             return self.stats.list_dates()
         elif choice == 'number':
             return self.stats.list_numbers()
+        elif choice == 'game':
+            return list(range(len(self.stats.list_numbers())))
         else:
             print(f"ERROR: unknown x axis {choice}")
         
     def get_y_axis(self) -> dict[str,list]:
         choice = self.y_choice.get_selected()
         if choice == 'wins':
-            return graphsyousee.get_list_over_range(self.stats.filtered,self.get_x_axis(),self.players_to_show.get_as_list(),
+            return graphsyousee.get_list_over_range(self.stats.filtered,self.get_x_cutoffs(),self.players_to_show.get_as_list(),
                                                     lambda games:foosballgame.get_records(games),self.x_choice.get_selected()=='date',
                                                     lambda x: x[0])
         elif choice == 'goals':
-            return graphsyousee.get_list_over_range(self.stats.filtered,self.get_x_axis(),self.players_to_show.get_as_list(),
+            return graphsyousee.get_list_over_range(self.stats.filtered,self.get_x_cutoffs(),self.players_to_show.get_as_list(),
                                                     lambda games:foosballgame.get_goals_scored_for_all(games),self.x_choice.get_selected()=='date',
                                                     lambda x: x[0])
         elif choice == 'colley win rank':
-            return colley.get_rankings_list(self.stats.filtered,self.get_x_axis(),self.players_to_show.get_as_list(),
+            return colley.get_rankings_list(self.stats.filtered,self.get_x_cutoffs(),self.players_to_show.get_as_list(),
                                             is_daily=self.x_choice.get_selected()=='date',by_wins=True)
         elif choice == 'colley goal rank':
-            return colley.get_rankings_list(self.stats.filtered,self.get_x_axis(),self.players_to_show.get_as_list(),
+            return colley.get_rankings_list(self.stats.filtered,self.get_x_cutoffs(),self.players_to_show.get_as_list(),
                                             is_daily=self.x_choice.get_selected()=='date',by_wins=False)
         elif choice == 'elo':
-            return elo.get_rankings_list(self.stats.filtered,self.get_x_axis(),self.players_to_show.get_as_list(),
+            return elo.get_rankings_list(self.stats.filtered,self.get_x_cutoffs(),self.players_to_show.get_as_list(),
                                          is_daily=self.x_choice.get_selected()=='date')
         else:
             print(f"ERROR: unknown y axis {choice}")
@@ -721,6 +840,59 @@ class GraphView(ttk.Frame):
     """
     Update labels to reflect current internal state -- no labels to update I think
     """
+    def update_labels(self) -> None:
+        pass
+
+"""
+Interaction and visualization for individual achievements
+"""
+class IndividualView(ttk.Frame):
+
+    def __init__(self, frm:ttk.Frame, stats:sc.StatCollector):
+        super().__init__(frm)
+        
+        self.frm = frm
+        self.stats = stats
+        self.individual = individual.IndividualStats('',self.stats)
+
+        entry_frm = ttk.Frame(self)
+        entry_frm.pack()
+        ttk.Label(entry_frm,text='Name').pack()
+        self.player = tk.StringVar()
+        ttk.Entry(entry_frm,textvariable=self.player).pack()
+        ttk.Button(entry_frm,text='Apply',command=self.update_labels)
+
+        stats_frm = ttk.Frame(self)
+        stats_frm.pack()
+        ttk.Label(stats_frm,text='Wins').grid(row=0,column=0,sticky='news')
+        self.wins = ttk.Label(stats_frm,text=0)
+        self.wins.grid(row=1,column=0,sticky='news')
+        ttk.Label(stats_frm,text='Losses').grid(row=0,column=1,sticky='news')
+        self.losses = ttk.Label(stats_frm,text=0)
+        self.losses.grid(row=1,column=1,sticky='news')
+
+        ttk.Label(stats_frm,text='Goals For').grid(row=0,column=2,sticky='news')
+        self.gf = ttk.Label(stats_frm,text=0)
+        self.gf.grid(row=1,column=2,sticky='news')
+        ttk.Label(stats_frm,text='Goals Against').grid(row=0,column=3,sticky='news')
+        self.ga = ttk.Label(stats_frm,text=0)
+        self.ga.grid(row=1,column=3,sticky='news')
+
+
+
+
+    """
+    Should update labels/check stats for any changes
+    """
+    def reset(self) -> None:
+        pass
+
+    """
+    Delete and recreate itself -- probably not needed
+    """
+    def reload(self) -> None:
+        pass
+
     def update_labels(self) -> None:
         pass
 
