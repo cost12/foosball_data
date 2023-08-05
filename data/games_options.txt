@@ -1,0 +1,3 @@
+Name,ID,Sheet,Csv
+Coliseum Foosball,1hdM3dleaHsLLUpqnYBnNgiaK8rx9i-9TK4qdZafdz-0,1v1,data/foosball_data.txt
+Test Data,1WL5RqIam191headiwmqz3YBuunVDtQZWqwee7ZtB_N4,Games,data/test_data.txt

@@ -6,11 +6,12 @@ import foosballgame
 import gameinfo
 import colley
 import elo
+import myranks
 import simulator
 import event_date
 import gamefilter
 
-"""
+""" TODO: handle 0 games
 This class collects stats for a group of games
 """
 class StatCollector:
@@ -34,7 +35,19 @@ class StatCollector:
         self.games = list[foosballgame.FoosballGame](games)
 
         # stat categories that are collected
-        self.stat_categories = ['players','matchups','games']
+        stats = ['Name','G','W','L','W PCT','STRK','GF','GA','G PCT','W PROB','WOE','LWS','LLS']
+        ratings = ['W RANK', 'G RANK', 'ELO', 'GOAL ELO', 'Skill']
+        games_stats = ['Winner', 'Loser', 'Winner Score', 'Loser Score', 'Winner Color', 'Date', 'Number', 'G PROB', 'LL PROB', 'LL EXIST PROB', 'EXIST PROB']
+        self.stat_categories = dict[str,list[str]]( \
+            {'standings': ['Name', 'G', 'W', 'L', 'W PCT', 'STRK', 'GF', 'GA', 'G PCT', 'LWS', 'LLS'], \
+             'ratings':   ['Name', 'G', 'W', 'L', 'W PROB', 'WOE', 'Skill', 'W RANK', 'G RANK', 'ELO', 'GOAL ELO'], \
+             'matchups':  ['Name', 'Opponent', 'G', 'W', 'L', 'W PCT', 'STRK', 'GF', 'GA', 'G PCT', 'LWS', 'LLS', 'W PROB', 'WOE'], \
+             #'m ratings': ['Name', 'Opponent', 'G', 'W', 'L', 'W PROB', 'WOE'], \
+             'games':     ['Winner', 'Loser', 'Winner Score', 'Loser Score', 'Winner Color', 'Date', 'Number', 'G PROB', 'LL PROB', 'LL EXIST PROB', 'EXIST PROB']} \
+        )
+        self.stats_from_players = set[str]({'standings', 'ratings', 'streaks'})
+        self.stats_from_matchups = set[str]({'matchups', 'm ratings', 'm streaks'})
+        self.stats_from_games = set[str]({'games'})
 
         # TODO: these may be useful/implemented later but not now
         #self.matchups = foosballgame.get_matchups(self.games)
@@ -44,8 +57,9 @@ class StatCollector:
         #self.individual_dict = {}
         #self.matchup_dict = {}
 
-        # elo
+        # ratings
         self.elo_tracker = elo.ELO_Calculator()
+        self.skill_tracker = myranks.SkillRating('Skill')
 
         # dataframes
         self.individual_stats = None
@@ -83,6 +97,8 @@ class StatCollector:
     Update/ build the dataframes used 
     """
     def __build_dfs(self) -> None:
+        if len(self.filtered) == 0:
+            return
         data_g = {} # this can't be calculated with the others because it depends on all time matchups
         for game in self.filtered:
             w_goals = self.matchup_dict[game.winner+game.loser]['GF']+1
@@ -109,7 +125,7 @@ class StatCollector:
 
         self.game_stats = pd.DataFrame.from_dict(data_g,orient='index')
 
-        self.individual_stats = pd.DataFrame.from_dict(self.individual_dict,orient='index')
+        self.individual_stats = pd.DataFrame.from_dict(self.individual_dict,orient='index')     
         self.individual_stats = self.__calculate_final_columns(self.individual_stats)
         stats = ['Name','G','W','L','W PCT','STRK','GF','GA','G PCT','W PROB','WOE','LWS','LLS']
         self.individual_stats = self.individual_stats[stats]
@@ -127,6 +143,7 @@ class StatCollector:
         self.individual_stats = self.individual_stats.merge(colley_g)
 
         self.individual_stats = self.individual_stats.merge(self.elo_tracker.to_df())
+        self.individual_stats = self.individual_stats.merge(self.skill_tracker.to_df())
         
         self.games_added = False
         
@@ -151,6 +168,7 @@ class StatCollector:
         self.individual_dict = {}
         self.matchup_dict = {}
         self.elo_tracker = elo.ELO_Calculator()
+        self.skill_tracker = myranks.SkillRating('Skill')
         for game in games:
             self.add_game(game, new_game=False)
         self.refiltered = False
@@ -173,6 +191,7 @@ class StatCollector:
             if filter_in:
                 self.filtered.append(game)
         self.elo_tracker.add_game(game)
+        self.skill_tracker.add_game(game)
 
         # Commented out lines are for if TODO below works
         if game.winner not in self.individual_dict:
@@ -221,16 +240,30 @@ class StatCollector:
     """
     Returns a list of the players who have competed
     """
-    def list_players(self) -> list[str]:
-        self.__uses_dicts()
-        return list(self.individual_dict.keys())
-    
-    def list_numbers(self) -> list[int]:
-        return [x.number for x in self.filtered]
+    def list_players(self, selected_only=False) -> list[str]:
+        if selected_only:
+            game_space = self.filtered
+        else:
+            game_space = self.games
+        players = set()
+        for game in game_space:
+            players.add(game.winner)
+            players.add(game.loser)
+        return list(players)
 
-    def list_dates(self) -> list[datetime.date]:
+    def list_numbers(self, selected_only=False) -> list[int]:
+        if selected_only:
+            return [x.number for x in self.filtered]
+        else:
+            return [x.number for x in self.games]
+
+    def list_dates(self, selected_only=False) -> list[datetime.date]:
+        if selected_only:
+            game_space = self.filtered
+        else:
+            game_space = self.games
         dates = []
-        for game in self.filtered:
+        for game in game_space:
             if len(dates) == 0 or not (dates[-1] == game.date):
                 dates.append(game.date)
         return dates
@@ -275,47 +308,67 @@ class StatCollector:
     """
     def get_stats(self, stat:str) -> pd.DataFrame:
         self.__uses_dfs()
-        if stat == 'players':
-            return self.individual_stats
-        elif stat == 'matchups':
+        if stat in self.stats_from_players:
+            return self.individual_stats[self.stat_categories[stat]]
+        elif stat in self.stats_from_matchups:
             # lots of tie breakers
-            return self.matchup_stats.loc[self.matchup_stats['W'] >  self.matchup_stats['L'] | 
-                                        ((self.matchup_stats['W'] == self.matchup_stats['L']) & (self.matchup_stats['GF'] > self.matchup_stats['GA'])) | 
-                                        ((self.matchup_stats['W'] == self.matchup_stats['L']) & (self.matchup_stats['GF'] == self.matchup_stats['GA']) & (self.matchup_stats['STRK'] < gameinfo.Streak(1,'W')))]
-        elif stat == 'games':
-            return self.game_stats
+            return self.matchup_stats[self.stat_categories[stat]].loc[(self.matchup_stats['W'] >  self.matchup_stats['L']) | 
+                                         ((self.matchup_stats['W'] == self.matchup_stats['L']) & (self.matchup_stats['GF'] > self.matchup_stats['GA'])) | 
+                                         ((self.matchup_stats['W'] == self.matchup_stats['L']) & (self.matchup_stats['GF'] == self.matchup_stats['GA']) & (self.matchup_stats['STRK'] < gameinfo.Streak(1,'W')))]
+        elif stat in self.stats_from_games:
+            return self.game_stats[self.stat_categories[stat]]
         elif stat in self.stat_categories:
             print("Error: no stats for {}".format(stat))
 
     """
     Returns a simulator for p1 and p2
+    
+    def get_simulator(self,p1:str,p2:str,by_skill=False) -> simulator.Simulator:
+        if by_skill:
+            sim = simulator.SkillSimulator(p1,p2)
+            sim.attach(self)
+            return sim
+        sim = simulator.ProbabilitySimulator(p1,p2)
+        sim.attach(self)
+        return sim
     """
-    def get_simulator(self,p1:str,p2:str) -> simulator.Simulator:
-        return simulator.Simulator(p1,p2,self)
 
     """
-    Filters the games by selecting ones from the given timeframe and returns a new StatCollector
+    Filters the games by selecting ones from the given timeframe and returns a new StatCollector, or updates the current one
     """
-    def filter_by_date(self,event_date:event_date.EventDate) -> None:
+    def filter_by_date(self,event_date:event_date.EventDate,make_new:bool=False):
         filtered = []
         for game in self.games:
             if event_date.contains_date(game.date):
                 filtered.append(game)
-        if not self.filtered == filtered:
-            self.filtered = filtered     
-            self.refiltered = True
+
+        if make_new:
+            return StatCollector(filtered)
+        else:
+            if not self.filtered == filtered:
+                self.filtered = filtered     
+                self.refiltered = True
 
     """
     Applies a filter to the games
+    Returns a new StatCollector or updates the current
     """
-    def apply_filter(self, filter:gamefilter.GameFilter) -> None:
+    def apply_filter(self, filter:gamefilter.GameFilter,make_new:bool=False) -> None:
         filtered = []
         for game in self.games:
             if filter.predicate(game):
                 filtered.append(game)
-        if not self.filtered == filtered:
-            self.filtered = filtered     
-            self.refiltered = True
+        if make_new:
+            return StatCollector(filtered)
+        else:
+            if not self.filtered == filtered:
+                self.filtered = filtered     
+                self.refiltered = True
+
+    def set_games(self, games:list[foosballgame.FoosballGame]) -> None:
+        self.games = games
+        self.filtered = games
+        self.__recalculate()
 
     """
     Count how many games would be selected by a given filter

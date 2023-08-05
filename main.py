@@ -26,7 +26,7 @@ def mainVisualize(save_csv:bool=False,use_csv:bool=False) -> None:
         games = data_read_in.read_in_games_from_sheets(copy_to_csv=save_csv)
         dates = data_read_in.read_in_dates_from_sheets(copy_to_csv=save_csv)
     if games is not None:
-        data_visualizer.visualize_foosball(games,dates)
+        data_visualizer.main_call(games,dates)
 
 """
 Main function for foosball data interactions

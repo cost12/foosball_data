@@ -18,18 +18,28 @@ Note:
 """
 class Simulator:
 
-    def __init__(self,p1:str,p2:str,stats): #:sc.StatCollector): TODO: figure out how to type hint here
+    def __init__(self,p1:str,p2:str): 
         # the players being simulated
         self.player1 = p1
         self.player2 = p2
 
         # stat collector that includes all relevant games between player1 and player2
-        self.stats = stats
+        self.stats = None
+        self.attached = False
 
         # current status of the simulation
         self.sim_score1 = 0
         self.sim_score2 = 0
         self.game_to = 10
+
+    def attach(self, stats): #:sc.StatCollector) TODO: figure out how to type hint here
+        if not self.attached:
+            self.attached = True
+            self.stats = stats
+
+    def detach(self):
+        self.attached = False
+        self.stats = None
 
     """
     Resets the simulation with the option to chose the players
@@ -85,9 +95,7 @@ class Simulator:
     The probability that player1 scores on player2 on a given point
     """
     def get_p1_goal_prob(self) -> float:
-        p1_goals = self.stats.get_goals_scored_on(self.player1,self.player2)
-        p2_goals = self.stats.get_goals_scored_on(self.player2,self.player1)
-        return (p1_goals+self.sim_score1+1)/(p1_goals+p2_goals+self.sim_score1+self.sim_score2+2)
+        raise RuntimeError('Not Implemented')
 
     """
     Simulates a singular goal using self.get_p1_goal_prob()
@@ -177,3 +185,31 @@ class Simulator:
                 else:
                     score = i
         return score
+    
+class SkillSimulator(Simulator):
+
+    def __init__(self,p1:str,p2:str):
+        super().__init__(p1,p2)
+
+    def get_p1_goal_prob(self) -> float:
+        p1_skill = self.stats.skill_tracker.get_rating(self.player1)
+        p2_skill = self.stats.skill_tracker.get_rating(self.player2)
+        return p1_skill/(p1_skill+p2_skill)
+
+class ProbabilitySimulator(Simulator):
+
+    def __init__(self,p1:str,p2:str):
+        super().__init__(p1,p2)
+
+    def get_p1_goal_prob(self) -> float:
+        p1_goals = self.stats.get_goals_scored_on(self.player1,self.player2)
+        p2_goals = self.stats.get_goals_scored_on(self.player2,self.player1)
+        return (p1_goals+self.sim_score1+1)/(p1_goals+p2_goals+self.sim_score1+self.sim_score2+2)
+    
+def get_simulator(p1:str,p2:str,type:str):
+    if type.lower() == 'skill':
+        return SkillSimulator(p1,p2)
+    if type.lower() in ['prob', 'probability']:
+        return ProbabilitySimulator(p1,p2)
+    else:
+        print(f"Unknown simulator type {type}")

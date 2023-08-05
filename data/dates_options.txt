@@ -1,0 +1,3 @@
+Name,ID,Sheet,Csv
+Semester Dates,1hdM3dleaHsLLUpqnYBnNgiaK8rx9i-9TK4qdZafdz-0,SemesterDates,data/semester_dates.txt
+Years,1WL5RqIam191headiwmqz3YBuunVDtQZWqwee7ZtB_N4,Dates,data/test_dates.txt

@@ -15,8 +15,10 @@ class GameFilter:
 	Resets the filter to its initial state or initializes the filter
 	"""
 	def reset(self) -> None:
-		self.winners = {"ANY"}
-		self.losers =  {"ANY"}
+		self.initialized = False
+		self.winners = set()
+		self.losers =  set()
+		self.restrict = True
 
 		self.win_score_max = 10
 		self.win_score_min = 10
@@ -29,7 +31,7 @@ class GameFilter:
 		self.number_min = 0
 		self.number_max = 999999
 
-		self.date_ranges = [event_date.EventDate("All",self.start_date(),self.end_date())]
+		self.date_ranges = list[event_date.EventDate]() #[event_date.EventDate("All",self.start_date(),self.end_date())]
 	
 	"""
 	Early date that all games will be later than
@@ -67,9 +69,17 @@ class GameFilter:
 		for event in self.date_ranges:
 			if event.contains_date(game.date):
 				in_dates = True
-		return ((game.winner in self.winners or "ANY" in self.winners) and \
-		        (game.loser  in self.losers  or "ANY" in self.losers)) and \
-		       game.winner_score <= self.win_score_max and \
+		if not in_dates:
+			return False
+		if self.restrict: # changes whether or or and
+			if not ((game.winner in self.winners or "ANY" in self.winners) and \
+		            (game.loser  in self.losers  or "ANY" in self.losers)):
+				return False
+		else:
+			if not ((game.winner in self.winners or "ANY" in self.winners) or \
+		            (game.loser  in self.losers  or "ANY" in self.losers)):
+				return False
+		return game.winner_score <= self.win_score_max and \
 		       game.winner_score >= self.win_score_min and \
 		       game.loser_score  <= self.lose_score_max and \
 		       game.loser_score  >= self.lose_score_min and \

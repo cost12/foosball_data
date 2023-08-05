@@ -1,10 +1,10 @@
 import tkinter as tk
 from tkinter import ttk
-from typing import Union
 import pandas as pd
 import matplotlib.pyplot
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
+import data_read_in
 import statcollector as sc
 import event_date
 import gamefilter
@@ -12,15 +12,18 @@ import graphsyousee
 import foosballgame
 import colley
 import elo
+import myranks
 import individual
+import utils
+import simulator
+from visual_tools import *
+import constants as c
+
+from urllib.error import URLError
 
 """
 TODO:
 classes needed:
-    Filter
-    FilterView
-    Graph
-    GraphView
     IndividualView
     LegendsView
 """
@@ -28,18 +31,77 @@ classes needed:
 """
 Main loop for tkinter
 """
-def visualize_foosball(games,dates) -> None:
-    root = tk.Tk()
-    root.rowconfigure(0,weight=1)
-    root.columnconfigure(0,weight=1)
+def visualize_foosball() -> None:
+    try:
+        games_options = data_read_in.read_in_games_options()
+    except Exception as e:
+        print("No options available for games")
+        print(e)
+        return
+    
+    try:
+        dates_options = data_read_in.read_in_dates_options()
+    except Exception as e:
+        print("No options available for dates")
+        print(e)
+        return
 
-    stats = sc.StatCollector(games)
-    viewControl = StatsViewControl(root,stats,dates)
+    root = tk.Tk()
+    #root.rowconfigure(0,weight=1)
+    #root.columnconfigure(0,weight=1)
+
+    s = ttk.Style()
+    #s.configure(root, font=('Tahoma', 11)) # Calibri
+
+    viewControl = StatsViewControl(root,games_options,dates_options)
 
     root.mainloop()
 
 """
+Super class for all views/screens
+"""
+class View(ttk.Frame):
+
+    def __init__(self, frm:ttk.Frame, *, __s:sc.StatCollector=None, __d:list[utils.SheetIdentifier]=None, __f:gamefilter.GameFilter=None):
+        super().__init__(frm)
+        
+        self.frm = frm
+        self.attached = False
+
+        self.attached = bool(False)
+        self.stats = __s
+        self.dates = __d
+        self.filter = __f
+
+
+    """
+    View attaches to the stats and dates passed in, updates it's values according to stats and dates
+    """
+    def attach(self, stats, dates, filter) -> None:
+        raise NotImplementedError()
+
+    """
+    View detaches from stats and dates and will no longer reflect changes stats or dates
+    """
+    def detach(self) -> None:
+        raise NotImplementedError()
+
+    """
+    Should update labels/check stats for any changes
+    """
+    def reset(self) -> None:
+        raise NotImplementedError()
+
+    """
+    Updates the labels to reflect changes to stats or dates
+    """
+    def update_labels(self) -> None:
+        raise NotImplementedError()
+
+"""
 Decides which frames are displayed
+
+Attaches and detaches views from stats and dates, sometimes has to update stats and dates
 
 Displays to add
  - graphs
@@ -48,30 +110,44 @@ Displays to add
 """
 class StatsViewControl(ttk.Frame):
 
-    def __init__(self,frm:ttk.Frame,stats:sc.StatCollector,dates:list[event_date.EventDate]) -> None:
+    def __init__(self,frm:ttk.Frame,games_options:list[utils.SheetIdentifier],dates_options:list[utils.SheetIdentifier]) -> None:
         super().__init__(frm)
         self.frm=frm
 
-        self.stats = stats
-        self.dates = dates
+        start_screen = str('dataset')
+
+        self.stats = sc.StatCollector([])
+        self.dates = list[event_date.EventDate]()
         self.filter = gamefilter.GameFilter()
-        self.view = str('table')
-        self.views = {'table':      StatTable(frm,self.stats),
-                      'sim':        SimView(frm,self.stats),
-                      'graphs':     GraphView(frm,self.stats), #TODO: implement these/ come up with more
-                      'individual': IndividualView(frm,self.stats),
+        
+        self.view = start_screen
+        self.views = dict[str, View] ( \
+                     {#'info':       InfoScreen(frm),
+                      'dataset':    DataSelector(frm, games_options, dates_options),
+                      'table':      StatTable(frm),
+                      'sim':        SimView(frm),
+                      'graphs':     GraphView(frm), #TODO: implement these/ come up with more
+                      #'individual': IndividualView(frm),
                       #'legends':    [],
                       #'records':    [],
                       #'overview':   [],
-                      'filter':     FilterView(frm,self.stats,self.filter,self.dates)}
-
+                      #'leauges':    [],
+                      #'game_entry': [],
+                      'filter':     FilterView(frm)} \
+        )
+        
         self.add_buttons()
 
+        self.error_text = tk.StringVar()
+        self.error_text.set("Welcome!")
+        ttk.Label(self.frm,textvariable=self.error_text).pack()#fill='y',expand=True,side='top')
+
         for view in self.views:
-            self.views[view].pack()
+            self.views[view].pack(fill='y',expand=True,side='top')
         for view in self.views:
-            if not view == 'table':
+            if not view == start_screen:
                 self.views[view].forget()
+        self.views[start_screen].attach(self.stats, self.dates, self.filter)
 
     """
     Add buttons for each view/frame and each semester/timeframe
@@ -84,89 +160,174 @@ class StatsViewControl(ttk.Frame):
         for view in self.views.keys():
             def change_v(v=view):
                 self.change_view(v)
-            ttk.Button(view_frm,text=view,command=change_v).grid(row=0,column=c)
-            view_frm.columnconfigure(c,weight=1)
+            ttk.Button(view_frm,text=view,command=change_v).grid(row=0,column=c,sticky='news')
+            #view_frm.columnconfigure(c,weight=1)
             c+=1
-
-        if 0:
-            # semester buttons
-            filter_frm = ttk.Frame(self.frm)
-            filter_frm.pack()
-            filter_frm.columnconfigure(0,weight=1)
-            def reset_filt():
-                self.stats.reset_filter()
-                for view in self.views:
-                    self.views[view].filter_reset()
-                self.views[self.view].pack()
-            ttk.Button(filter_frm, text='All Time',command=reset_filt).grid(row=0,column=0)
-            c=1
-            for semester in self.dates:
-                def filter(date=semester):
-                    self.stats.filter_by_date(date)
-                    for view in self.views:
-                        self.views[view].filter_applied(date.name)
-                    self.views[self.view].pack()
-                ttk.Button(filter_frm, text=semester.name,command=filter).grid(row=0,column=c)
-                filter_frm.columnconfigure(c,weight=1)
-                c+=1
-
-    """
-    Reload the current frame
-
-    def reload(self) -> None:
-        self.views[self.view].reload()
-    """
 
     """
     Change from one frame to another
     """
     def change_view(self,view:str) -> None:
+        if len(self.stats.filtered) == 0:
+            self.error_text.set("Error: No games selected")
+            return
         if view in self.views and view != self.view:
+            self.error_text.set("No Errors Detected")
             self.views[self.view].forget()
+            self.views[self.view].detach()
             self.view = view
-            self.views[self.view].reset()
-            self.views[self.view].pack()
+            self.views[self.view].attach(self.stats, self.dates, self.filter)
+            #self.views[self.view].reset()
+            self.views[self.view].pack(fill='y',expand=True,side='top')
+
+
+class DataSelector(View):
+
+    def __init__(self, frm:ttk.Frame, games_options:list[utils.SheetIdentifier], dates_options:list[utils.SheetIdentifier]):
+        super().__init__(frm)
+    
+        self.games_dict = dict[str,utils.SheetIdentifier]()
+        for option in games_options:
+            self.games_dict[option.name] = option
+
+        self.dates_dict = dict[str,utils.SheetIdentifier]()
+        for option in dates_options:
+            self.dates_dict[option.name] = option
+
+        self.first_games = games_options[0].name
+        self.first_dates = dates_options[0].name
+
+        self.games_select = SingleSelector(self, 'Games Selection', [x.name for x in games_options], apply_btn=True)
+        self.games_select.add_listener(self)
+        self.games_select.grid(row=0,column=0,sticky='news')
+
+        self.dates_select = SingleSelector(self, 'Dates Selection', [x.name for x in dates_options], apply_btn=True)
+        self.dates_select.add_listener(self)
+        self.dates_select.grid(row=0,column=1,sticky='news')
+
+        self.error_text = tk.StringVar()
+        self.error_text.set("Waiting for a place to load data... you probably shouldn't see this")
+        ttk.Label(self,textvariable=self.error_text).grid(row=2,column=0,columnspan=2,sticky='news')
 
     """
-    Repack the current frame
-    
-    def repack(self) -> None:
-        self.views[self.view].pack()
+    Updates the current selection of data/ dates
     """
+    def update_value(self, name, value):
+        if not self.attached:
+            return
+
+        success = True
+        if name == 'Dates Selection':
+            sheet = self.dates_dict[value]
+            date_fnf = False
+            date_bad_format = False
+            try:
+                dates = data_read_in.read_in_dates_from_sheets(sheet.id, sheet.sheet_name)
+                self.error_text.set('Date file loaded successfully')
+            except URLError as fnf:
+                date_fnf = True
+                self.error_text.set('Date file not found, looking for csv instead...')
+            except ValueError as ve:
+                date_bad_format = True
+                self.error_text.set('Date file has incorrect format, loading from csv instead...')
+            finally:
+                if date_fnf or date_bad_format:
+                    try:
+                        dates = data_read_in.read_in_dates_from_csv(sheet.csv_name)
+                        self.error_text.set(self.error_text.get() + '\ncsv loaded successfully')
+                    except FileNotFoundError as fnf:
+                        success = False
+                        self.error_text.set(self.error_text.get() + '\ncsv not found, data load unsuccessful')
+                    except ValueError as ve:
+                        success = False
+                        self.error_text.set(self.error_text.get() + '\ncsv has incorrect format, data load unsuccessful')
+            if success:
+                self.dates.clear()
+                self.dates.extend(dates)
+        elif name == 'Games Selection':
+            sheet = self.games_dict[value]
+            game_fnf = False
+            game_bad_format = False
+            try:
+                games = data_read_in.read_in_games_from_sheets(sheet.id, sheet.sheet_name)
+                self.error_text.set('Game file loaded successfully')
+            except URLError as fnf:
+                game_fnf = True
+                self.error_text.set('Game file not found, looking for csv instead...')
+            except ValueError as ve:
+                game_bad_format = True
+                self.error_text.set('Game file has incorrect format, loading from csv instead...')
+            finally:
+                if game_fnf or game_bad_format:
+                    try:
+                        games = data_read_in.read_in_games_from_csv(sheet.csv_name)
+                        self.error_text.set(self.error_text.get() + '\ncsv loaded successfully')
+                    except FileNotFoundError as fnf:
+                        print(fnf)
+                        game_csv_fnf = True
+                        self.error_text.set(self.error_text.get() + '\ncsv not found, data load unsuccessful')
+                        success = False
+                    except ValueError as ve:
+                        print(ve)
+                        game_csv_bad_format = True
+                        self.error_text.set(self.error_text.get() + '\ncsv has incorrect format, data load unsuccessful')
+                        success = False
+            if success:
+                self.filter.reset()
+                self.stats.set_games(games)
+        
+
+    def attach(self, stats:sc.StatCollector, dates:list[event_date.EventDate], filter:gamefilter.GameFilter):
+        if not self.attached:
+            self.attached = True
+            self.stats = stats
+            self.dates = dates
+            self.filter = filter
+            self.error_text.set('Select data then press Apply to load')
+            # this shouldn't select the first thing every time, that would be expensive and annoying
+            # instead only update for the first load, then just make sure the right things are selected
+            # alternatively, just have a button - press to load
+            #self.update_value('Games Selection', self.first_games)
+            #self.update_value('Dates Selection', self.first_dates)
+            # this should actually work
+
+    def detach(self):
+        self.attached = False
+        self.stats = None
+        self.dates = None
+        self.filter = None
+    
+    """
+    Should update labels/check stats for any changes
+    """
+    def reset(self) -> None:
+        pass
+
+    def update_labels(self) -> None:
+        pass
 
 """
 Interaction and visulization for Simulator
 """
-class SimView(ttk.Frame):
+class SimView(View):
 
-    def __init__(self,frm:ttk.Frame,stats:sc.StatCollector,p1:str='',p2:str='') -> None:
-        super().__init__(frm)
-        self.frm = frm
-        
-        self.stats = stats
+    def __init__(self,frm:ttk.Frame,*,p1:str='',p2:str='') -> None:
+        super().__init__(frm)        
 
-        self.time_str = 'All Time'
         self.show_probs = True
 
         self.player1=tk.StringVar()
         self.player2=tk.StringVar()
-        self.simulator = self.stats.get_simulator(self.player1.get(),self.player2.get())
+        # TODO: simulator should be something that gets passed into attach
+        self.simulator = simulator.get_simulator(self.player1.get(),self.player2.get(), 'prob' if self.show_probs else 'skill')
 
-        self.columnconfigure(0,weight=5)
-        self.columnconfigure(1,weight=1)
-        self.columnconfigure(2,weight=5)
-        self.rowconfigure(0,weight=2)
-        self.rowconfigure(1,weight=1)
-        self.rowconfigure(2,weight=2)
-        self.rowconfigure(3,weight=1)
-        self.rowconfigure(4,weight=1)
-        self.rowconfigure(5,weight=1)
-        self.rowconfigure(6,weight=1)
-        self.rowconfigure(7,weight=1)
-        self.rowconfigure(8,weight=1)
-        self.rowconfigure(9,weight=1)
+        selector = SingleSelector(self,'Simulation Type',['Probability','Skill'])
+        selector.add_listener(self)
+        selector.grid(row=0,column=1,sticky='news')
+        self.is_skill = False
 
-        r = 0
+
+        r = 1
         # top row
         self.p1_ent = ttk.Entry(self,textvariable=self.player1)
         self.p1_ent.grid(row=r, column=0,sticky='news')
@@ -199,17 +360,17 @@ class SimView(ttk.Frame):
         # row 3
         self.win_prob_lbl1 =  ttk.Label(self, text='win prob',anchor='e')
         self.win_prob_lbl1.grid(row=r,column=0,sticky='news')
-        self.time_frame_lbl = ttk.Label(self, text=self.time_str,anchor='c')
+        self.time_frame_lbl = ttk.Label(self, text='Cool!',anchor='c')
         self.time_frame_lbl.grid(row=r,column=1,sticky='news')
         self.win_prob_lbl2 =  ttk.Label(self, text='win prob',anchor='w')
         self.win_prob_lbl2.grid(row=r,column=2,sticky='news')
 
         r += 1
         # row 4
-        text = '{:>.3f}%'.format(self.simulator.get_p1_win_odds()*100)
+        text = '0' #'{:>.3f}%'.format(self.simulator.get_p1_win_odds()*100)
         self.win_prob_num1 = ttk.Label(self, text=text,anchor='e')
         self.win_prob_num1.grid(row=r,column=0,sticky='news')
-        text = '{:>.3f}%'.format((1-self.simulator.get_p1_win_odds())*100)
+        text = '0' #'{:>.3f}%'.format((1-self.simulator.get_p1_win_odds())*100)
         self.win_prob_num2 = ttk.Label(self, text=text)
         self.win_prob_num2.grid(row=r,column=2,sticky='news')
 
@@ -222,10 +383,10 @@ class SimView(ttk.Frame):
 
         r += 1
         # row 6
-        text = '{:>.3f}'.format(self.simulator.get_expected_score(self.simulator.player1))
+        text = '0' #'{:>.3f}'.format(self.simulator.get_expected_score(self.simulator.player1))
         self.exp_score_num1 = ttk.Label(self, text=text,anchor='e')
         self.exp_score_num1.grid(row=r,column=0,sticky='news')
-        text = '{:>.3f}'.format(self.simulator.get_expected_score(self.simulator.player2))
+        text = '0' #'{:>.3f}'.format(self.simulator.get_expected_score(self.simulator.player2))
         self.exp_score_num2 = ttk.Label(self, text=text)
         self.exp_score_num2.grid(row=r,column=2,sticky='news')
 
@@ -238,9 +399,9 @@ class SimView(ttk.Frame):
 
         r += 1
         # row 8
-        self.prob_score_num1 = ttk.Label(self, text=self.simulator.get_most_probable_score(self.simulator.player1),anchor='e')
+        self.prob_score_num1 = ttk.Label(self, text='0',anchor='e')#self.simulator.get_most_probable_score(self.simulator.player1),anchor='e')
         self.prob_score_num1.grid(row=r,column=0,sticky='news')
-        self.prob_score_num2 = ttk.Label(self, text=self.simulator.get_most_probable_score(self.simulator.player2),anchor='w')
+        self.prob_score_num2 = ttk.Label(self, text='0',anchor='w')#self.simulator.get_most_probable_score(self.simulator.player2),anchor='w')
         self.prob_score_num2.grid(row=r,column=2,sticky='news')
 
         r += 1
@@ -285,21 +446,35 @@ class SimView(ttk.Frame):
             self.score_lbls_p1.append(p1_lbl)
             self.score_lbls_p2.append(p2_lbl)
 
-    
-    """
-    Redraws everything
-    """
-    def reload(self) -> None:
-        self.destroy()
-        self.__init__(self.frm,self.stats,self.player1.get(),self.player2.get())
-        self.pack()
+    def attach(self, stats:sc.StatCollector, dates:list[event_date.EventDate], filter=None):
+        if not self.attached:
+            self.attached = True
+            self.stats = stats
+            self.dates = dates
+            self.simulator.attach(self.stats)
+
+    def detach(self):
+        self.attached = False
+        self.stats = None
+        self.dates = None
+
+        self.simulator.detach()
 
     """
     Resets the simulator
     """
-    def reset(self) -> None:
-        self.simulator.reset_simulator(self.player1.get(),self.player2.get())
+    def reset(self) -> None: # TODO: there must be a better way to do this
+        self.simulator = simulator.get_simulator(self.player1.get(),self.player2.get(),'skill' if self.is_skill else 'prob')
+        self.simulator.attach(self.stats)
         self.update_labels()
+
+    def update_value(self, name:str, selected:str):
+        if name == 'Simulation Type':
+            if selected == 'Probability':
+                self.is_skill = False
+            else:
+                self.is_skill = True
+            self.reset()
 
     """
     Simulate a goal
@@ -324,23 +499,21 @@ class SimView(ttk.Frame):
 
     """
     Filter the games by a date range
-    """
+    
     def filter_applied(self,name:str) -> None:
-        self.time_str = name
         self.reset()
 
-    """
+    
     Reset the filter/ go back to games from all time frames
-    """
+    
     def filter_reset(self) -> None:
-        self.time_str = 'All Time'
         self.reset()
+    """
 
     """
     Updates the labels with new information from the simulation
     """
     def update_labels(self) -> None:
-        self.time_frame_lbl.config(text=self.time_str)
         self.score_num1.config(text=self.simulator.sim_score1)
         self.score_num2.config(text=self.simulator.sim_score2)
         text = '{:>.3f}%'.format(self.simulator.get_p1_win_odds()*100)
@@ -373,14 +546,11 @@ class SimView(ttk.Frame):
 """
 Interaction and visualization for StatCollector
 """
-class StatTable(ttk.Frame):
+class StatTable(View):
 
-    def __init__(self, frm:ttk.Frame, stats:sc.StatCollector, rmax:int=30, sort:list[str]=['W PCT'], asc:bool=False, view:str='players') -> None:
+    def __init__(self, frm:ttk.Frame, rmax:int=25, sort:list[str]=['W PCT'], asc:bool=False, view:str='standings') -> None:
         super().__init__(frm)
-        
-        self.frm = frm
-        self.stats = stats
-        
+                
         self.sort = sort
         self.ascending = asc
         self.view = view
@@ -395,67 +565,47 @@ class StatTable(ttk.Frame):
         self.buttons = list[ttk.Button]()
         self.end_btns = list[ttk.Button]()
 
-        data = self.get_data()
+    def attach(self, stats:sc.StatCollector, dates=None, filter=None):
+        if not self.attached:
+            self.attached = True
+            self.stats = stats
 
-        if 0:
-            # headers
-            for c in range(len(data.columns)):
-                header = data.columns[c]
-                btn = ttk.Button(self, text=header,command=self.__sort_call(header))
-                btn.grid(row=0, column=c+1,sticky='news')
-                self.buttons.append(btn)
-            
-            self.num_rows = min(data.shape[0]-self.start_row,self.max_rows)
-            for r in range(self.num_rows):
-                # numbers
-                nlbl = ttk.Label(self, text=r+1, anchor='e')
-                nlbl.grid(row=r+1, column=0,sticky='news')
-                
-                self.labels.append([])
-                self.labels[-1].append(nlbl)
-
-                # body
-                for c in range(len(data.iloc[r])):
-                    background = self.background
-                    if len(self.sort) > 0 and self.sort[0] == data.columns[c]:
-                        background = self.highlight
-                    text = data.iloc[r+self.start_row][c]
-                    anchor = 'e'
-                    if isinstance(text,str):
-                        anchor = 'w'
-                    if isinstance(text,float):
-                        text = '{:>.3f}'.format(text)
-                    lbl = ttk.Label(self, text=text, anchor=anchor,background=background)
-                    lbl.grid(row=r+1, column=c+1,sticky='news')
-                    self.labels[-1].append(lbl)
-        else:
-            r = 0
-
-        c=0
-        for stat in self.stats.list_stats():
-            def set_v(v=stat):
-                self.set_view(v)
-            btn = ttk.Button(self, text=stat,command=set_v)
-            btn.grid(row=r+2,column=c,sticky='news')
+            r=0
+            c=0
+            for stat in self.stats.list_stats():
+                def set_v(v=stat):
+                    self.set_view(v)
+                btn = ttk.Button(self, text=stat,command=set_v)
+                btn.grid(row=r+2,column=c,sticky='news')
+                self.end_btns.append(btn)
+                c += 1
+            btn = ttk.Button(self,text='prev',command=self.prev_page)
+            btn.grid(row=r+2,column=c+1,sticky='news')
             self.end_btns.append(btn)
-            c += 1
-        btn = ttk.Button(self,text='prev',command=self.prev_page)
-        btn.grid(row=r+2,column=c+1,sticky='news')
-        self.end_btns.append(btn)
-        btn = ttk.Button(self,text='next',command=self.next_page)
-        btn.grid(row=r+2,column=c+2,sticky='news')
-        self.end_btns.append(btn)
+            btn = ttk.Button(self,text='next',command=self.next_page)
+            btn.grid(row=r+2,column=c+2,sticky='news')
+            self.end_btns.append(btn)
 
-        self.update_labels()
-        
+            self.update_labels()
 
-    """ 
-    Destroys and recreats the object
-    """
-    def reload(self) -> None:
-        self.destroy()
-        self.__init__(self.frm,self.stats,self.max_rows,self.sort,self.ascending,self.view)
-        self.pack()
+    def detach(self):
+        self.attached = False
+        self.stats = None
+
+        self.start_row = 0
+        self.num_rows = 0
+
+        for button in self.end_btns:
+            button.destroy()
+        self.end_btns.clear()
+        for button in self.buttons:
+            button.destroy()
+        self.buttons.clear()
+        for lis in self.labels:
+            for label in lis:
+                label.destroy()
+            lis.clear()
+        self.labels.clear()
 
     """
     Called to update labels quickly
@@ -464,14 +614,19 @@ class StatTable(ttk.Frame):
         self.start_row = 0
         self.update_labels()
 
-    """
+    """ TODO: error because sometimes the gap between prev and the previous thing does not exist
     Update the table values without having to delete/ redraw
     """
     def update_labels(self) -> None:
+        if not self.attached:
+            return
+        # get the data
         data = self.get_data()
         prev_rows = self.num_rows
+        prev_cols = len(self.buttons)
         self.num_rows = min(data.shape[0]-self.start_row,self.max_rows)
 
+        # create the buttons on the top row
         for c in range(len(data.columns)):
             header = data.columns[c]
             if c < len(self.buttons):
@@ -482,17 +637,20 @@ class StatTable(ttk.Frame):
                 self.buttons.append(btn)
 
         # remove excess from buttons and labels
-        len_btns = c+1
-        if len(self.buttons) > len_btns:
+        len_btns = c+1                   # the number of current buttons
+        if len(self.buttons) > len_btns: # max(current buttons, prev buttons) > current buttons (there are an excess that need to be removed)
+            # delete labels
             for r in range(len(self.labels)):
                 for c in range(len_btns,len(self.buttons)):
                     self.labels[r][c+1].destroy() # +1 because of number labels
                 self.labels[r] = self.labels[r][:c+1]
+            # delete buttons
             for c in range(len_btns,len(self.buttons)):
                 self.buttons[c].destroy()
             self.buttons = self.buttons[:len_btns]
 
         for r in range(self.num_rows):
+            # number any new rows created, make sure all number labels have the correct number
             if r >= prev_rows:
                 nlbl = ttk.Label(self, text=self.start_row+r+1, anchor='e')
                 nlbl.grid(row=r+1, column=0,sticky='news')
@@ -501,6 +659,7 @@ class StatTable(ttk.Frame):
                 self.labels[-1].append(nlbl)
             else:
                 self.labels[r][0].config(text=self.start_row+r+1)
+            # highlight columns if needed, format text correctly, add label if needed
             for c in range(len(data.iloc[r])):
                 background = self.background
                 if len(self.sort) > 0 and self.sort[0] == data.columns[c]:
@@ -511,13 +670,13 @@ class StatTable(ttk.Frame):
                     anchor = 'w'
                 if isinstance(text,float):
                     text = '{:>.3f}'.format(text)
-                if r < prev_rows:
+                if r < prev_rows and c < prev_cols:
                     self.labels[r][c+1].config(text=text,background=background,anchor=anchor)
                 else:
-                    lbl = ttk.Label(self, text=text, anchor=anchor,background=background)
+                    lbl = ttk.Label(self, text=text,background=background,anchor=anchor)
                     lbl.grid(row=r+1, column=c+1,sticky='news')
-                    self.labels[-1].append(lbl)
-        # remove excess
+                    self.labels[r].insert(c+1, lbl)
+        # remove excess rows and number labels
         if self.num_rows < prev_rows:
             for r in range(self.num_rows,prev_rows):
                 for lbl in self.labels[r]:
@@ -535,15 +694,17 @@ class StatTable(ttk.Frame):
     Advance to the next page/ see more stats
     """
     def next_page(self) -> None:
-        self.start_row += self.max_rows
-        self.update_labels()
+        if self.num_rows >= self.max_rows:
+            self.start_row += self.max_rows
+            self.update_labels()
 
     """
     Go back to the previous page
     """
     def prev_page(self) -> None:
-        self.start_row = max(self.start_row-self.max_rows,0)
-        self.update_labels()
+        if self.start_row > 0:
+            self.start_row = max(self.start_row-self.max_rows,0)
+            self.update_labels()
 
     """
     Get data from the StatCollector and store it so it can be displayed
@@ -553,19 +714,21 @@ class StatTable(ttk.Frame):
         for s in self.sort:
             if s not in data.columns:
                 self.sort.remove(s)
-                print("removed " + s)
+                if c.DEBUG_MODE:
+                    print("removed " + s)
         if len(self.sort)>0:
             try:
                 data = data.sort_values(by=self.sort, ascending=self.ascending)
             except:
-                print(data.columns)
-                print(self.sort)
-                print("")
+                if c.DEBUG_MODE:
+                    print(data.columns)
+                    print(self.sort)
+                    print("")
         return data
 
-    """ TODO: find a better way than reloading to upadate the visualization
+    """
     Sets the main sort to be n and the direction is decided by ascending
-    Calls reload so that the data is displayed as sorted
+    Calls reset so that the data is displayed as sorted
     """
     def sort_by(self, n:str, ascending:bool=None) -> None:
         if n in self.sort:
@@ -585,7 +748,7 @@ class StatTable(ttk.Frame):
             ascending = not self.ascending
         return lambda:self.sort_by(n,ascending)
 
-    """ TODO: find a better way than reloading
+    """
     Change the view to a different stat category
     """
     def set_view(self, view:str) -> None:
@@ -593,62 +756,136 @@ class StatTable(ttk.Frame):
             self.view = view
             self.reset()
 
-    """ TODO: find a better way than reloading
-    Filter the games by a date range
     """
+    Filter the games by a date range
+    
     def filter_applied(self,name:str) -> None:
         self.reset()
 
-    """ TODO: find a better way than reloading
+    
     Reset the filter/ go back to games from all time frames
-    """
+    
     def filter_reset(self) -> None:
         self.reset()
+    """
 
 """
 Interaction and visualization for a filter
 """
-class FilterView(ttk.Frame):
+class FilterView(View):
 
-    def __init__(self, frm:ttk.Frame, stats:sc.StatCollector, filter:gamefilter.GameFilter, events:list[event_date.EventDate]=[]) -> None:
+    def __init__(self, frm:ttk.Frame) -> None:
         super().__init__(frm)
 
-        self.frm = frm
-        self.stats = stats
-        self.filter = filter
-        self.events = dict[str,event_date.EventDate]()
-        for event in events:
-            self.events[event.name] = event
+        self.date_lookup = dict[str,event_date.EventDate]()
 
-        self.count_lbl = ttk.Label(self, text=f'({self.stats.count_filtered(self.filter)} games selected)')
-        self.count_lbl.grid(row=0,column=0,columnspan=4)
+        self.count_text = tk.StringVar()
+        self.count_text.set('(0 games selected)')
+        ttk.Label(self, textvariable=self.count_text).grid(row=0,column=0,columnspan=4,sticky='news')
 
-        self.player_select = MultiSelector(self, 'Winner Select', stats.list_players())
-        self.player_select.add_listener(self)
-        self.player_select.grid(row=1,column=0,rowspan=4,sticky='news')
+        self.winner_select = MultiSelector(self, 'Winner Select')
+        self.winner_select.add_listener(self)
+        self.winner_select.grid(row=1,column=0,rowspan=4,sticky='news')
 
-        self.player_select = MultiSelector(self, 'Loser Select', stats.list_players())
-        self.player_select.add_listener(self)
-        self.player_select.grid(row=1,column=1,rowspan=4,sticky='news')
+        self.loser_select = MultiSelector(self, 'Loser Select')
+        self.loser_select.add_listener(self)
+        self.loser_select.grid(row=1,column=1,rowspan=4,sticky='news')
 
-        self.player_select = MultiSelector(self, 'Event Select', list(self.events.keys()))
-        self.player_select.add_listener(self)
-        self.player_select.grid(row=1,column=2,rowspan=2,sticky='news')
+        self.restrict_select = MultiSelector(self, 'Restrict', ['restrict'])
+        self.restrict_select.add_listener(self)
+        self.restrict_select.grid(row=5,column=0,columnspan=2,sticky='news')
 
-        self.loser_score_range = RangeAdjustor(self, 'Loser Score', 
-                                               stats.min_score_loss(),     stats.max_score_loss(), 
-                                               stats.min_score_possible(), stats.max_score_possible())
+        self.event_select = MultiSelector(self, 'Event Select')
+        self.event_select.add_listener(self)
+        self.event_select.grid(row=1,column=2,rowspan=2,sticky='news')
+
+        self.loser_score_range = RangeAdjustor(self, 'Loser Score')
         self.loser_score_range.add_listener(self)
         self.loser_score_range.grid(row=1,column=3,sticky='news')
 
-        self.number_range = RangeAdjustor(self, 'Number', 
-                                          stats.min_num_selected(), stats.max_num_selected(), 
-                                          stats.min_num(),          stats.max_num())
+        self.number_range = RangeAdjustor(self, 'Number')
         self.number_range.add_listener(self)
         self.number_range.grid(row=2,column=3,sticky='news')
 
-        ttk.Button(self,text='Apply',command=self.apply_filter).grid(row=4,column=2)
-        #ttk.Button(self,text='Reset',command=self.reset_filter).grid(row=4,column=3)
+        ttk.Button(self,text='Apply',command=self.apply_filter).grid(row=4,column=2,sticky='news')
+        #ttk.Button(self,text='Reset',command=self.reset_filter).grid(row=4,column=3,sticky='news')
+
+    def attach(self, stats:sc.StatCollector, dates:list[event_date.EventDate], filter:gamefilter.GameFilter):
+        if not self.attached:
+            self.attached = True
+            self.stats = stats
+            self.dates = dates
+            self.filter = filter
+
+            for date in self.dates:
+                self.date_lookup[date.name] = date
+            self.update_options()
+
+    def update_options(self): # TODO: make sure filter and visualization are matched
+        self.winner_select.set_options(self.stats.list_players())
+        self.loser_select.set_options(self.stats.list_players())
+        self.event_select.set_options(list(self.date_lookup.keys()))
+        
+        self.loser_score_range.set_min_val(self.stats.min_score_possible())
+        self.loser_score_range.set_max_val(self.stats.max_score_possible())
+        
+        self.number_range.set_min_val(self.stats.min_num())
+        self.number_range.set_max_val(self.stats.max_num())
+
+        if self.filter.initialized:
+            self.winner_select.deselect_all()
+            for player in self.filter.winners:
+                self.winner_select.select(player)
+
+            self.loser_select.deselect_all()
+            for player in self.filter.losers:
+                self.loser_select.select(player)
+
+            self.event_select.deselect_all()
+            for event in self.filter.date_ranges:
+                self.event_select.select(event.name)
+
+            self.loser_score_range.set_low_val(self.filter.lose_score_min)
+            self.loser_score_range.set_high_val(self.filter.lose_score_max)
+
+            self.number_range.set_low_val(self.filter.number_min)
+            self.number_range.set_high_val(self.filter.number_max)
+
+            if self.filter.restrict:
+                self.restrict_select.select_all()
+            else:
+                self.restrict_select.deselect_all()
+        else:
+            self.filter.winners.clear()
+            self.filter.winners.update(self.winner_select.options)
+
+            self.filter.losers.clear()
+            self.filter.losers.update(self.loser_select.options)
+
+            self.filter.date_ranges.clear()
+            self.filter.date_ranges.extend(list(self.date_lookup.values()))
+
+            self.loser_score_range.set_low_val(self.stats.min_score_loss())
+            self.loser_score_range.set_high_val(self.stats.max_score_loss())
+
+            self.number_range.set_low_val(self.stats.min_num_selected())
+            self.number_range.set_high_val(self.stats.max_num_selected())
+
+            self.restrict_select.select_all()
+            self.filter.restrict = True
+            self.filter.initialized = False # Yes I want it this way
+
+    def detach(self):
+        self.attached = None
+        self.stats = None
+        self.dates = None
+        self.filter = None
+
+        self.date_lookup.clear()
+
+        self.winner_select.clear_options()
+        self.loser_select.clear_options()
+        self.event_select.clear_options()
 
     """
     Called by ViewControl
@@ -657,43 +894,26 @@ class FilterView(ttk.Frame):
         pass
 
     """
-    Called by ViewControl
-    """
-    def reload(self) -> None:
-        pass
-
-    """
     Apply the chosen filter to the stats
     """
     def apply_filter(self) -> None:
         self.stats.apply_filter(self.filter)
-        self.count_lbl.config(text=f'({self.stats.count_filtered(self.filter)} games selected)')
+        #self.update_options()
+        self.count_text.set(f'({self.stats.count_filtered(self.filter)} games selected)')
 
     """
     Reset the stats to the default filter
     """
     def reset_filter(self) -> None: #TODO: actually reset or just remove
         self.stats.reset_filter()
-        self.count_lbl.config(text=f'({self.stats.count_filtered(self.filter)} games selected)')
+        #self.update_options()
+        self.count_text.set(f'({self.stats.count_filtered(self.filter)} games selected)')
 
-    """
-    Called by ViewControl to notify that a filter has been applied -- probably not used anymore
-    
-    def filter_applied(self, name) -> None:
-        pass
-
-    
-    Called by ViewControl to notify that a filter reset -- probably not used anymore
-    
-    def filter_reset(self) -> None:
-        pass
-    """
     """
     Update the labels to reflect the current state
     """
     def update_labels(self) -> None:
-        self.count_lbl.config(text=f'({self.stats.count_filtered(self.filter)} games selected, press Apply to apply)')
-        #self.filter.print()
+        self.count_text.set(f'({self.stats.count_filtered(self.filter)} games selected, press Apply to apply)')
 
     """
     Get notified when an update occurs to a value and handle the update
@@ -722,34 +942,33 @@ class FilterView(ttk.Frame):
     def update_value(self, name, value):
         if name == 'Winner Select':
             self.filter.winners = set(value)
-            self.update_labels()
         elif name == 'Loser Select':
             self.filter.losers = set(value)
-            self.update_labels()
         elif name == 'Event Select':
             events = list[event_date.EventDate]()
             for event in value:
-                events.append(self.events[event])
+                events.append(self.date_lookup[event])
             self.filter.date_ranges = events
-            self.update_labels()
+        elif name == 'Restrict':
+            self.filter.restrict = (len(value)==1)
+        else:
+            return # only update labels if something happens
+        self.update_labels()
 
 """
 Interaction and visualization for creating graphs
 """
-class GraphView(ttk.Frame):
+class GraphView(View):
 
-    def __init__(self, frm:ttk.Frame, stats:sc.StatCollector):
+    def __init__(self, frm:ttk.Frame):
         super().__init__(frm)
         
-        self.frm = frm
-        self.stats = stats
-
         self.supported_xs = ['date','number','game']
-        self.supported_ys = ['wins','goals','colley win rank', 'colley goal rank', 'elo']
+        self.supported_ys = ['wins','goals','colley win rank', 'colley goal rank', 'elo', 'skill']
 
-        self.players_to_show = MultiSelector(self,"Players",self.stats.list_players())
+        self.players_to_show = MultiSelector(self,"Players")
         self.players_to_show.add_listener(self)
-        self.players_to_show.grid(row=0,column=0,sticky='news',rowspan=2)
+        self.players_to_show.grid(row=0,column=0,sticky='news',rowspan=3)
 
         self.x_choice = SingleSelector(self,"x axis",self.supported_xs)
         self.x_choice.add_listener(self)
@@ -759,13 +978,40 @@ class GraphView(ttk.Frame):
         self.y_choice.add_listener(self)
         self.y_choice.grid(row=1,column=1,sticky='news')
 
+        self.alpha_val = ValueAdjustor(self,'alpha',0.5,0,1,0.05)
+        self.alpha_val.add_listener(self)
+        self.alpha_val.grid(row=2,column=1,sticky='news')
+
+        self.graphed = False
+        # TODO: this may cause an error, may be unecessary, leave in?
+        """
         self.graph = graphsyousee.create_foosball_graph(f'{self.y_choice.get_selected()} by {self.x_choice.get_selected()}',self.x_choice.get_selected(),self.y_choice.get_selected(),
                                                         self.players_to_show.get_as_list(),
                                                         self.get_x_axis(),
                                                         self.get_y_axis())
         self.graph_display = FigureCanvasTkAgg(self.graph,self)
         self.graph_display.draw()
-        self.graph_display.get_tk_widget().grid(row=0,column=2,sticky='news',rowspan=2)
+        self.graph_display.get_tk_widget().grid(row=2,column=1,sticky='news',rowspan=3)
+        """
+
+    def attach(self, stats:sc.StatCollector, dates=None, filter=None) -> None:
+        if not self.attached:
+            self.attached = True
+            self.stats = stats
+
+            self.players_to_show.set_options(self.stats.list_players())
+            self.reset()
+
+    def detach(self):
+        self.attached = False
+        self.stats = None
+
+        self.players_to_show.clear_options()
+
+        if self.graphed:
+            matplotlib.pyplot.close(self.graph)
+            self.graph_display.get_tk_widget().destroy()
+        self.graphed = False
 
     """
     
@@ -813,6 +1059,9 @@ class GraphView(ttk.Frame):
         elif choice == 'elo':
             return elo.get_rankings_list(self.stats.filtered,self.get_x_cutoffs(),self.players_to_show.get_as_list(),
                                          is_daily=self.x_choice.get_selected()=='date')
+        elif choice == 'skill':
+            return myranks.get_rankings_list(self.stats.filtered,self.get_x_cutoffs(),self.players_to_show.get_as_list(),
+                                             is_daily=self.x_choice.get_selected()=='date',syst=myranks.SkillRating,name='Skill',alpha=self.alpha_val.value)
         else:
             print(f"ERROR: unknown y axis {choice}")
 
@@ -820,8 +1069,10 @@ class GraphView(ttk.Frame):
     Should update labels/check stats for any changes
     """ 
     def reset(self) -> None:
-        matplotlib.pyplot.close(self.graph)
-        self.graph_display.get_tk_widget().destroy()
+        if self.graphed:
+            matplotlib.pyplot.close(self.graph)
+            self.graph_display.get_tk_widget().destroy()
+        self.graphed = True
         
         self.graph = graphsyousee.create_foosball_graph(f'{self.y_choice.get_selected()} by {self.x_choice.get_selected()}',self.x_choice.get_selected(),self.y_choice.get_selected(),
                                                         self.players_to_show.get_as_list(),
@@ -829,13 +1080,7 @@ class GraphView(ttk.Frame):
                                                         self.get_y_axis())
         self.graph_display = FigureCanvasTkAgg(self.graph,self)
         self.graph_display.draw()
-        self.graph_display.get_tk_widget().grid(row=0,column=2,sticky='news',rowspan=2)
-
-    """
-    Delete and recreate itself -- probably not needed
-    """
-    def reload(self) -> None:
-        pass
+        self.graph_display.get_tk_widget().grid(row=0,column=2,sticky='news',rowspan=3)
 
     """
     Update labels to reflect current internal state -- no labels to update I think
@@ -843,27 +1088,25 @@ class GraphView(ttk.Frame):
     def update_labels(self) -> None:
         pass
 
-"""
+""" TODO: this whole class
 Interaction and visualization for individual achievements
 """
-class IndividualView(ttk.Frame):
+class IndividualView(View):
 
-    def __init__(self, frm:ttk.Frame, stats:sc.StatCollector):
+    def __init__(self, frm:ttk.Frame):
         super().__init__(frm)
         
-        self.frm = frm
-        self.stats = stats
         self.individual = individual.IndividualStats('',self.stats)
 
         entry_frm = ttk.Frame(self)
-        entry_frm.pack()
-        ttk.Label(entry_frm,text='Name').pack()
+        entry_frm.grid(row=0,column=0,sticky='news')
+        ttk.Label(entry_frm,text='Name').grid(row=0,column=0,sticky='news')
         self.player = tk.StringVar()
-        ttk.Entry(entry_frm,textvariable=self.player).pack()
-        ttk.Button(entry_frm,text='Apply',command=self.update_labels)
+        ttk.Entry(entry_frm,textvariable=self.player).grid(row=0,column=1,sticky='news')
+        ttk.Button(entry_frm,text='Apply',command=self.update_labels).grid(row=0,column=2,sticky='news')
 
         stats_frm = ttk.Frame(self)
-        stats_frm.pack()
+        stats_frm.grid(row=1,column=0,sticky='news')
         ttk.Label(stats_frm,text='Wins').grid(row=0,column=0,sticky='news')
         self.wins = ttk.Label(stats_frm,text=0)
         self.wins.grid(row=1,column=0,sticky='news')
@@ -878,8 +1121,11 @@ class IndividualView(ttk.Frame):
         self.ga = ttk.Label(stats_frm,text=0)
         self.ga.grid(row=1,column=3,sticky='news')
 
+    def attach(self, stats, dates, filter) -> None:
+        pass
 
-
+    def detach(self) -> None:
+        pass
 
     """
     Should update labels/check stats for any changes
@@ -887,290 +1133,11 @@ class IndividualView(ttk.Frame):
     def reset(self) -> None:
         pass
 
-    """
-    Delete and recreate itself -- probably not needed
-    """
-    def reload(self) -> None:
-        pass
-
     def update_labels(self) -> None:
         pass
 
-"""
-Select values from a list of values
-"""
-class MultiSelector(ttk.Frame):
+def main() -> None:
+    visualize_foosball()
 
-    def __init__(self, frm:ttk.Frame, name:str, options:list) -> None:
-        super().__init__(frm, borderwidth=2, relief='groove')
-
-        self.frm = frm
-        self.name = name
-        self.options = options
-
-        self.listeners = []
-
-        self.selected = list[tk.IntVar]()
-        self.check_btns = list[ttk.Checkbutton]()
-
-        r = 0
-        ttk.Label(self,text=self.name).grid(row=r,column=0,columnspan=2)
-        r += 1
-        for option in self.options:
-            self.selected.append(tk.IntVar())
-            self.selected[-1].set(1)
-            self.check_btns.append(ttk.Checkbutton(self, text=option, variable=self.selected[-1], onvalue=1, offvalue=0))
-            self.check_btns[-1].state(['!alternate'])
-            self.check_btns[-1].state(['selected'])
-            self.check_btns[-1].grid(row=r,column=0,sticky='news')
-            r += 1
-
-        ttk.Button(self, text='Select All',   command=self.select_all).grid(row=1,column=1)
-        ttk.Button(self, text='Deselect All', command=self.deselect_all).grid(row=2,column=1)
-        ttk.Button(self, text='Apply',        command=self.value_update).grid(row=3,column=1)
-
-    """
-    Return the selected values as a list
-    """
-    def get_as_list(self) -> list[str]:
-        lis = list[str]()
-        for sel,opt in zip(self.selected,self.options):
-            if sel.get() == 1:
-                lis.append(opt)
-        return lis
-
-    """
-    Notify any listeners that the values have been updated
-    Passes the list of selected values to all listeners
-    """
-    def value_update(self) -> None:
-        for listener in self.listeners:
-            listener.update_value(self.name, self.get_as_list())
-
-    """
-    Selects all values
-    """
-    def select_all(self) -> None:
-        for btn,sel in zip(self.check_btns,self.selected):
-            btn.state(['selected'])
-            sel.set(1)
-
-    """
-    Deselects all values
-    """
-    def deselect_all(self) -> None:
-        for btn,sel in zip(self.check_btns,self.selected):
-            btn.state(['!selected'])
-            sel.set(0)
-
-    """
-    Adds a listener that will be updated everytime different values are selected
-    Listeners use update_value(name, value) to listen
-    """
-    def add_listener(self, listener) -> None:
-        self.listeners.append(listener)
-
-"""
-Select a value from a list of values
-"""
-class SingleSelector(ttk.Frame):
-
-    def __init__(self, frm:ttk.Frame, name:str, options:list) -> None:
-        super().__init__(frm, borderwidth=2, relief='groove')
-
-        self.frm = frm
-        self.name = name
-        self.options = options
-
-        self.listeners = []
-
-        self.selected = tk.StringVar()
-
-        r = 0
-        ttk.Label(self,text=self.name).grid(row=r,column=0,columnspan=2)
-        r += 1
-        for option in self.options:
-            ttk.Radiobutton(self, text=option, variable=self.selected, value=option).grid(row=r,column=0,sticky='news')
-            r += 1
-        self.selected.set(self.options[0])
-        ttk.Button(self, text='Apply', command=self.value_update).grid(row=1,column=1)
-
-    """
-    Return the selected value
-    """
-    def get_selected(self) -> str:
-        return self.selected.get()
-
-    """
-    Notify any listeners that the values have been updated
-    Passes the list of selected values to all listeners
-    """
-    def value_update(self) -> None:
-        for listener in self.listeners:
-            listener.update_value(self.name, self.get_selected())
-
-    """
-    Adds a listener that will be updated everytime different values are selected
-    Listeners use update_value(name, value) to listen
-    """
-    def add_listener(self, listener) -> None:
-        self.listeners.append(listener)
-
-"""
-UI to adjust a range of values
-"""
-class RangeAdjustor(ttk.Frame):
-
-    def __init__(self, frm:ttk.Frame, name:str, low_val:int=0, high_val:int=10, min_val:Union[int,None]=None, max_val:Union[int,None]=None):
-        super().__init__(frm, borderwidth=2, relief='sunken')
-
-        assert min_val <= low_val <= high_val <= max_val
-
-        self.frm = frm
-        self.name = name
-        self.low_val = low_val
-        self.high_val = high_val
-        self.min_val = min_val
-        self.max_val = max_val
-
-        self.listeners = []
-
-        r = 0
-        ttk.Label(self,text=self.name,anchor='c').grid(row=r,column=1,sticky='news')
-        r += 1
-        self.min_adj = ValueAdjustor(self,'min',self.low_val,self.min_val,self.high_val)
-        self.min_adj.grid(row=r,column=0,sticky='news')
-        self.min_adj.add_listener(self)
-        self.max_adj = ValueAdjustor(self,'max',self.high_val,self.low_val,self.max_val)
-        self.max_adj.grid(row=r,column=2,sticky='news')
-        self.max_adj.add_listener(self)
-
-    """
-    Adds a listener that will be notified when value is changed
-    """
-    def add_listener(self, listener) -> None:
-        self.listeners.append(listener)
-
-    """
-    Updates the listeners based on a value change
-    """
-    def __update_listeners(self, which, value) -> None:
-        for listener in self.listeners:
-            listener.update_range(self.name, which, value)
-    
-    """
-    Handles an update to one of the values
-    """
-    def update_value(self, name:str, value:int):
-        if name == 'min':
-            self.min_val = value
-            self.max_adj.set_min(value)
-        elif name == 'max':
-            self.max_val = value
-            self.min_adj.set_max(value)
-        self.__update_listeners(name,value)
-
-
-"""
-UI to adjust a value with an optional min/max 
-"""
-class ValueAdjustor(ttk.Frame):
-    
-    def __init__(self, frm:ttk.Frame, name:str, cur_val:int=0, min_val:Union[int,None]=None, max_val:Union[int,None]=None) -> None:
-        super().__init__(frm, borderwidth=2, relief='raised')
-
-        assert min_val <= cur_val <= max_val
-
-        self.frm = frm
-        self.name = name
-        self.value = cur_val
-        self.max_val = max_val
-        self.min_val = min_val
-
-        self.listeners = []
-
-        r = 0
-        ttk.Label(self,text=self.name,anchor='c').grid(row=r,column=1,sticky='news')
-        r += 1
-        ttk.Button(self,text='-',command=self.decrease).grid(row=r,column=0,sticky='news')
-        self.val_lbl = ttk.Label(self,text=self.value,anchor='c')
-        self.val_lbl.grid(row=r,column=1,sticky='news')
-        ttk.Button(self,text='+',command=self.increase).grid(row=r,column=2,sticky='news')
-
-    """
-    Adds a listener that will be notified when value is changed
-    """
-    def add_listener(self, listener) -> None:
-        self.listeners.append(listener)
-
-    """
-    Updates lables to show current values
-    """
-    def update_labels(self) -> None:
-        self.val_lbl.config(text=self.value)
-        for listener in self.listeners:
-            listener.update_value(self.name, self.value)
-
-    """
-    If it's within range, decreases the value and updates the label
-    """
-    def decrease(self) -> None:
-        if self.min_val is None or self.value > self.min_val:
-            self.value -= 1
-            self.update_labels()
-
-    """
-    If it's withing range, increases the value and updates the label
-    """
-    def increase(self) -> None:
-        if self.max_val is None or self.value < self.max_val:
-            self.value += 1
-            self.update_labels()
-
-    """
-    Sets the min value to a new value and updates the current value as necessary
-    """
-    def set_min(self, new_min:Union[int,None]) -> None:
-        self.min_val = new_min
-        if self.min_val is not None and self.min_val > self.value:
-            self.value = self.min_val
-            self.update_labels()
-
-    """
-    Sets the max value to a new value and updates the current value as necessary
-    """
-    def set_max(self, new_max:Union[int,None]) -> None:
-        self.max_val = new_max
-        if self.max_val is not None and self.max_val < self.value:
-            self.value = self.max_val
-            self.update_labels()
-
-
-
-"""
-#
-Skeleton Class
-#
-class View(ttk.Frame):
-
-    def __init__(self, frm:ttk.Frame, stats:sc.StatCollector):
-        super().__init__(frm)
-        
-        self.frm = frm
-        self.stats = stats
-
-    #
-    Should update labels/check stats for any changes
-    #
-    def reset(self) -> None:
-        pass
-
-    #
-    Delete and recreate itself -- probably not needed
-    #
-    def reload(self) -> None:
-        pass
-
-    def update_labels(self) -> None:
-        pass
-"""
+if __name__ == "__main__":
+    main()
