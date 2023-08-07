@@ -8,7 +8,7 @@ import old.graph as graph
 import colley
 import foosballgame
 import graphsyousee
-import userinput
+import old.userinput as userinput
 
 def list_games(games):
 	if len(games) == 0:

@@ -1,6 +1,6 @@
 import sys
 
-import userinput
+import old.userinput as userinput
 import data_read_in
 import data_visualizer
 

@@ -13,6 +13,7 @@ Features to Add: (0 added)
 2. Individual Overview
 3. Info
 4. See which tab you are on
+5. Records
 
 Table Features:
 1. Choose how many rows appear in table
