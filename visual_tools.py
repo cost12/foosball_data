@@ -402,3 +402,21 @@ class ValueAdjustor(ttk.Frame):
         if self.max_val is not None and self.max_val < self.value:
             self.value = self.max_val
             self.update_labels()
+
+
+class LabeledValue(ttk.Frame):
+
+    def __init__(self, frm:ttk.Frame, label:str, value="None"):
+        super().__init__(frm, borderwidth=2, relief='groove')
+        self.label = tk.StringVar()
+        self.value = tk.StringVar()
+
+        self.label.set(label)
+        self.value.set(str(value))
+
+        ttk.Label(self, textvariable=self.label,anchor='center').grid(row=0,column=0,sticky='news')
+        ttk.Label(self, textvariable=self.value,relief='sunken',anchor='center').grid(row=1,column=0,sticky='news')
+
+    def set_value(self, value):
+        self.value.set(str(value))
+    

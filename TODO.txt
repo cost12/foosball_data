@@ -29,9 +29,8 @@ Filter Features:
 3. Make it so the filter saves the players selected
 
 Dataset Features:
-1. know which datasets you are using/ have been loaded
-2. Be able to add datasets
-3. Don't allow clicks while stuff is loading
+1. Be able to add datasets
+2. Don't allow clicks while stuff is loading
 
 Needs Testing:
 

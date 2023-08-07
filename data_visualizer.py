@@ -207,7 +207,13 @@ class DataSelector(View):
 
         self.error_text = tk.StringVar()
         self.error_text.set("Waiting for a place to load data... you probably shouldn't see this")
-        ttk.Label(self,textvariable=self.error_text).grid(row=2,column=0,columnspan=2,sticky='news')
+        ttk.Label(self,textvariable=self.error_text).grid(row=1,column=0,columnspan=2,sticky='news')
+
+        self.selected_games = LabeledValue(self, 'Game Dataset In Use')
+        self.selected_dates = LabeledValue(self, 'Date Dataset In Use')
+
+        self.selected_games.grid(row=2,column=0,sticky='news')
+        self.selected_dates.grid(row=2,column=1,sticky='news')
 
     """
     Updates the current selection of data/ dates
@@ -215,6 +221,8 @@ class DataSelector(View):
     def update_value(self, name, value):
         if not self.attached:
             return
+        
+        # need a loading screen here
 
         success = True
         if name == 'Dates Selection':
@@ -244,6 +252,7 @@ class DataSelector(View):
             if success:
                 self.dates.clear()
                 self.dates.extend(dates)
+                self.selected_dates.set_value(value)
         elif name == 'Games Selection':
             sheet = self.games_dict[value]
             game_fnf = False
@@ -275,6 +284,9 @@ class DataSelector(View):
             if success:
                 self.filter.reset()
                 self.stats.set_games(games)
+                self.selected_games.set_value(value)
+
+        # exit loading screen
         
 
     def attach(self, stats:sc.StatCollector, dates:list[event_date.EventDate], filter:gamefilter.GameFilter):
