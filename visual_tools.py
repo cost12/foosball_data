@@ -2,12 +2,14 @@ import tkinter as tk
 from tkinter import ttk
 from typing import Union
 
+import constants as c
+
 """ TODO: should duplicates be allowed? right now they are
 Select values from a list of values
 """
 class MultiSelector(ttk.Frame):
 
-    def __init__(self, frm:ttk.Frame, name:str, options:list[str] = None, apply_btn = False) -> None:
+    def __init__(self, frm:ttk.Frame, name:str, options:list[str] = None, apply_btn:bool=False, sorted:bool=True) -> None:
         super().__init__(frm, borderwidth=2, relief='groove')
 
         self.frm = frm
@@ -17,26 +19,15 @@ class MultiSelector(ttk.Frame):
         else:
             self.options = options
         self.apply_btn = apply_btn
+        self.sorted = sorted
 
         self.listeners = []
 
         self.selected = list[tk.IntVar]()
         self.check_btns = list[ttk.Checkbutton]()
 
-        r = 0
-        ttk.Label(self,text=self.name).grid(row=r,column=0,columnspan=2,sticky='news')
-        r += 1
-        for option in self.options:
-            self.selected.append(tk.IntVar())
-            self.selected[-1].set(1)
-            if apply_btn:
-                self.check_btns.append(ttk.Checkbutton(self, text=option, variable=self.selected[-1], onvalue=1, offvalue=0))
-            else:
-                self.check_btns.append(ttk.Checkbutton(self, text=option, variable=self.selected[-1], onvalue=1, offvalue=0, command=self.value_update))
-            self.check_btns[-1].state(['!alternate'])
-            self.check_btns[-1].state(['selected'])
-            self.check_btns[-1].grid(row=r,column=0,sticky='news')
-            r += 1
+        ttk.Label(self,text=self.name).grid(row=0,column=0,columnspan=2,sticky='news')
+        self.__place_buttons()
 
         ttk.Button(self, text='Select All',   command=self.select_all).grid(row=1,column=1,sticky='news')
         ttk.Button(self, text='Deselect All', command=self.deselect_all).grid(row=2,column=1,sticky='news')
@@ -65,21 +56,21 @@ class MultiSelector(ttk.Frame):
     """
     Selects all values
     """
-    def select_all(self) -> None:
+    def select_all(self, like_click:bool=True) -> None:
         for btn,sel in zip(self.check_btns,self.selected):
             btn.state(['selected'])
             sel.set(1)
-        if not self.apply_btn:
+        if not self.apply_btn and like_click:
             self.value_update()
 
     """
     Deselects all values
     """
-    def deselect_all(self) -> None:
+    def deselect_all(self, like_click:bool=True) -> None:
         for btn,sel in zip(self.check_btns,self.selected):
             btn.state(['!selected'])
             sel.set(0)
-        if not self.apply_btn:
+        if not self.apply_btn and like_click:
             self.value_update()
 
     """
@@ -89,19 +80,19 @@ class MultiSelector(ttk.Frame):
     def add_listener(self, listener) -> None:
         self.listeners.append(listener)
 
-    def select(self, option:str) -> bool:
+    def select(self, option:str, like_click:bool=True) -> bool:
         if option in self.options:
             self.check_btns[self.options.index(option)].state(['selected'])
-            if not self.apply_btn:
+            if not self.apply_btn and like_click:
                 self.value_update()
             return True
         return False
 
-    def deselect(self, option:str) -> bool:
+    def deselect(self, option:str, like_click:bool=True) -> bool:
         if option in self.options:
             if self.selected[self.options.index(option)]:
                 self.check_btns[self.options.index(option)].state(['!selected'])
-            if not self.apply_btn:
+            if not self.apply_btn and like_click:
                 self.value_update()
             return True
         return False
@@ -125,17 +116,22 @@ class MultiSelector(ttk.Frame):
             return True
         return False
     
-    def add_option(self, option:str) -> None:
-        self.options.append(option)
-        self.selected.append(tk.IntVar())
-        self.selected[-1].set(1)
-        if self.apply_btn:
-            self.check_btns.append(ttk.Checkbutton(self, text=option, variable=self.selected[-1], onvalue=1, offvalue=0))
+    def add_option(self, option:str, select:bool=True) -> None:
+        if self.sorted:
+            if c.DEBUG_MODE:
+                print("Error: Multiselector.add_option not implemented for sorted selections")
         else:
-            self.check_btns.append(ttk.Checkbutton(self, text=option, variable=self.selected[-1], onvalue=1, offvalue=0, command=self.value_update))
-        self.check_btns[-1].state(['!alternate'])
-        self.check_btns[-1].state(['selected'])
-        self.check_btns[-1].grid(row=len(self.options),column=0,sticky='news')
+            self.options.append(option)
+            self.selected.append(tk.IntVar())
+            self.selected[-1].set(1)
+            if self.apply_btn:
+                self.check_btns.append(ttk.Checkbutton(self, text=option, variable=self.selected[-1], onvalue=1, offvalue=0))
+            else:
+                self.check_btns.append(ttk.Checkbutton(self, text=option, variable=self.selected[-1], onvalue=1, offvalue=0, command=self.value_update))
+            self.check_btns[-1].state(['!alternate'])
+            if select:
+                self.check_btns[-1].state(['selected'])
+            self.check_btns[-1].grid(row=len(self.options),column=0,sticky='news')
 
     def add_options(self, options:list[str]) -> None:
         for option in options:
@@ -143,40 +139,62 @@ class MultiSelector(ttk.Frame):
 
     def set_options(self, options:list[str]) -> None:
         self.clear_options()
-        self.add_options(options)
+        self.options.extend(options)
+        self.__place_buttons()
+
+    def __place_buttons(self):
+        r=1
+        if self.sorted:
+            self.options.sort()
+        for option in self.options:
+            self.selected.append(tk.IntVar())
+            self.selected[-1].set(1)
+            if self.apply_btn:
+                self.check_btns.append(ttk.Checkbutton(self, text=option, variable=self.selected[-1], onvalue=1, offvalue=0))
+            else:
+                self.check_btns.append(ttk.Checkbutton(self, text=option, variable=self.selected[-1], onvalue=1, offvalue=0, command=self.value_update))
+            self.check_btns[-1].state(['!alternate'])
+            self.check_btns[-1].state(['selected'])
+            self.check_btns[-1].grid(row=r,column=0,sticky='news')
+            r += 1
 
 """ TODO: should duplicates be allowed? right now they are
 Select a value from a list of values
 """
 class SingleSelector(ttk.Frame):
 
-    def __init__(self, frm:ttk.Frame, name:str, options:list, apply_btn:bool=False) -> None:
+    def __init__(self, frm:ttk.Frame, name:str, options:list, apply_btn:bool=False, sorted:bool=True) -> None:
         super().__init__(frm, borderwidth=2, relief='groove')
 
         self.frm = frm
         self.name = name
         self.options = options
         self.apply_btn = apply_btn
+        self.sorted = sorted
 
         self.listeners = []
 
         self.selected = tk.StringVar()
         self.btns = list[ttk.Radiobutton]()
 
-        r = 0
-        ttk.Label(self,text=self.name).grid(row=r,column=0,columnspan=2,sticky='news')
-        r += 1
+        ttk.Label(self,text=self.name).grid(row=0,column=0,columnspan=2,sticky='news')
+        self.__place_buttons()
+
+        if self.apply_btn:
+            ttk.Button(self, text='Apply', command=self.value_update).grid(row=len(self.options)+1,column=0,columnspan=2,sticky='news')
+
+    def __place_buttons(self):
+        if self.sorted:
+            self.options.sort()
+        r = 1
         for option in self.options:
-            if apply_btn:
+            if self.apply_btn:
                 self.btns.append(ttk.Radiobutton(self, text=option, variable=self.selected, value=option))
             else:
                 self.btns.append(ttk.Radiobutton(self, text=option, variable=self.selected, value=option, command=self.value_update))
             self.btns[-1].grid(row=r,column=0,sticky='news')
             r += 1
         self.selected.set(self.options[0])
-
-        if apply_btn:
-            ttk.Button(self, text='Apply', command=self.value_update).grid(row=r,column=0,columnspan=2,sticky='news')
 
     """
     Return the selected value
@@ -199,10 +217,11 @@ class SingleSelector(ttk.Frame):
     def add_listener(self, listener) -> None:
         self.listeners.append(listener)
 
-
-    def select(self, option:str) -> bool:
+    def select(self, option:str, like_click:bool=True) -> bool:
         if option in self.options:
-            self.btns[self.options.index(option)].invoke()
+            self.selected.set(option)
+            if not self.apply_btn and like_click:
+                self.value_update()
             return True
         return False
 
@@ -223,19 +242,24 @@ class SingleSelector(ttk.Frame):
                 btn.grid(row=i,column=0,sticky='news')
             if self.selected.get() == option:
                 if len(self.btns) > 0:
-                    self.btns[0].invoke()
+                    self.selected.set(self.options[0])
+                    self.value_update()
                 else:
                     self.selected.set('')
             return True
         return False
     
     def add_option(self, option:str) -> None:
-        self.options.append(option)
-        if self.apply_btn:
-            self.btns.append(ttk.Radiobutton(self, text=option, variable=self.selected, value=option))
+        if self.sorted:
+            if c.DEBUG_MODE:
+                print("Error: Multiselector.add_option not implemented for sorted selections")
         else:
-            self.btns.append(ttk.Radiobutton(self, text=option, variable=self.selected, value=option, command=self.value_update))
-        self.btns[-1].grid(row=len(self.options),column=0,sticky='news')
+            self.options.append(option)
+            if self.apply_btn:
+                self.btns.append(ttk.Radiobutton(self, text=option, variable=self.selected, value=option))
+            else:
+                self.btns.append(ttk.Radiobutton(self, text=option, variable=self.selected, value=option, command=self.value_update))
+            self.btns[-1].grid(row=len(self.options),column=0,sticky='news')
 
     def add_options(self, options:list[str]) -> None:
         for option in options:
@@ -243,7 +267,8 @@ class SingleSelector(ttk.Frame):
 
     def set_options(self, options:list[str]) -> None:
         self.clear_options()
-        self.add_options(options)
+        self.options.extend(options)
+        self.__place_buttons()
 
 """
 UI to adjust a range of values
