@@ -104,7 +104,8 @@ Decides which frames are displayed
 Attaches and detaches views from stats and dates, sometimes has to update stats and dates
 
 Displays to add
- - graphs
+ - records
+ - leagues
  - individual
  - news/legends
 """
