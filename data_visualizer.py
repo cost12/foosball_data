@@ -136,7 +136,9 @@ class StatsViewControl(ttk.Frame):
                       'filter':     FilterView(frm)} \
         )
         
-        self.add_buttons()
+        self.buttons = ButtonGroup(self.frm, "Screens", list(self.views.keys()),selected=start_screen)
+        self.buttons.add_listener(self)
+        self.buttons.pack()
 
         self.error_text = tk.StringVar()
         self.error_text.set("Welcome!")
@@ -150,19 +152,11 @@ class StatsViewControl(ttk.Frame):
         self.views[start_screen].attach(self.stats, self.dates, self.filter)
 
     """
-    Add buttons for each view/frame and each semester/timeframe
+    Called by the buttons to change the screen
     """
-    def add_buttons(self) -> None:
-        # view buttons
-        view_frm = ttk.Frame(self.frm)
-        view_frm.pack()
-        c=0
-        for view in self.views.keys():
-            def change_v(v=view):
-                self.change_view(v)
-            ttk.Button(view_frm,text=view,command=change_v).grid(row=0,column=c,sticky='news')
-            #view_frm.columnconfigure(c,weight=1)
-            c+=1
+    def update_value(self, name, value):
+        if name == 'Screens':
+            self.change_view(value)
 
     """
     Change from one frame to another
@@ -575,6 +569,8 @@ class StatTable(View):
 
         self.labels = list[list[ttk.Label]]()
         self.buttons = list[ttk.Button]()
+        self.view_btns = ButtonGroup(self, 'Views')
+        self.view_btns.add_listener(self)
         self.end_btns = list[ttk.Button]()
 
     def attach(self, stats:sc.StatCollector, dates=None, filter=None):
@@ -584,13 +580,10 @@ class StatTable(View):
 
             r=0
             c=0
-            for stat in self.stats.list_stats():
-                def set_v(v=stat):
-                    self.set_view(v)
-                btn = ttk.Button(self, text=stat,command=set_v)
-                btn.grid(row=r+2,column=c,sticky='news')
-                self.end_btns.append(btn)
-                c += 1
+            stat_opts = self.stats.list_stats()
+            self.view_btns.set_options(stat_opts, self.view)
+            self.view_btns.grid(row=r+2,column=c,columnspan=len(stat_opts)+1,sticky='news')
+            c += len(stat_opts)+1
             btn = ttk.Button(self,text='prev',command=self.prev_page)
             btn.grid(row=r+2,column=c+1,sticky='news')
             self.end_btns.append(btn)
@@ -600,12 +593,18 @@ class StatTable(View):
 
             self.update_labels()
 
+    def update_value(self, name, value):
+        if name == 'Views':
+            self.set_view(value)
+
     def detach(self):
         self.attached = False
         self.stats = None
 
         self.start_row = 0
         self.num_rows = 0
+
+        self.view_btns.set_options([])
 
         for button in self.end_btns:
             button.destroy()
@@ -695,10 +694,11 @@ class StatTable(View):
                     lbl.destroy()
             self.labels = self.labels[:self.num_rows]
         elif self.num_rows > prev_rows:
+            # move the bottom row of buttons to the new bottom
             c = 0
+            self.view_btns.grid(row=self.num_rows+2,column=c,columnspan=len(self.view_btns.options)+1,sticky='news')
+            c += len(self.view_btns.options) + 2
             for btn in self.end_btns:
-                if c == len(self.end_btns)-2:
-                    c += 1
                 btn.grid(row=self.num_rows+2,column=c,sticky='news')
                 c += 1
 
