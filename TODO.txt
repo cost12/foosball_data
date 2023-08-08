@@ -8,25 +8,22 @@ Bugs: (8 fixed)
 2. Sim view - removed time string, still has some references that cause errors
 3. Sort takes 2 clicks to work sometimes
 
-Features to Add: (0 added)
+Features to Add:
 1. Leagues - standings, schedule, scores
 2. Individual Overview
 3. Info
-4. See which tab you are on
-5. Records
+4. Records
 
 Table Features:
 1. Choose how many rows appear in table
-2. See which bottom tab you have selected
-3. Even/ odd rows alternate colors
+2. Even/ odd rows alternate colors
 
 Sim Features:
 1. Be able to input games to sheets
 
 Filter Features:
-1. Alphabetical order for people
-2. Make it easier to select Number/ not just +/- 1
-3. Make it so the filter saves the players selected
+1. Make it easier to select Number/ not just +/- 1
+2. Make it so the filter saves the players selected
 
 Dataset Features:
 1. Be able to add datasets
