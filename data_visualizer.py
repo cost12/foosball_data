@@ -91,6 +91,12 @@ class View(ttk.Frame):
     """
     def update_labels(self) -> None:
         raise NotImplementedError()
+    
+    """
+    Determines wether the view has completed all necessary actions to allow a change of screens
+    """
+    def ready_to_leave(self) -> bool:
+        return True
 
 """
 Decides which frames are displayed
@@ -131,6 +137,7 @@ class StatsViewControl(ttk.Frame):
                       #'game_entry': [],
                       } \
         )
+        self.no_game_views = ['dataset', 'filter']
         
         self.buttons = ButtonGroup(self.frm, "Screens", list(self.views.keys()),selected=start_screen)
         self.buttons.add_listener(self)
@@ -158,8 +165,12 @@ class StatsViewControl(ttk.Frame):
     Change from one frame to another
     """
     def change_view(self,view:str) -> None:
-        if len(self.stats.filtered) == 0:
+        if len(self.stats.filtered) == 0 and view not in self.no_game_views:
             self.error_text.set("Error: No games selected")
+            self.buttons.set_highlight(self.view)
+            return
+        if not self.views[self.view].ready_to_leave():
+            self.error_text.set("Error: Can't leave yet")
             self.buttons.set_highlight(self.view)
             return
         if view in self.views and view != self.view:
@@ -207,6 +218,12 @@ class DataSelector(View):
         self.selected_games.grid(row=2,column=0,sticky='news')
         self.selected_dates.grid(row=2,column=1,sticky='news')
 
+        self.games_picked = False
+        self.dates_picked = False
+
+    def ready_to_leave(self) -> bool:
+        return self.games_picked and self.dates_picked
+
     """
     Updates the current selection of data/ dates
     """
@@ -242,6 +259,7 @@ class DataSelector(View):
                         success = False
                         self.error_text.set(self.error_text.get() + '\ncsv has incorrect format, data load unsuccessful')
             if success:
+                self.dates_picked = True
                 self.dates.clear()
                 self.dates.extend(dates)
                 self.selected_dates.set_value(value)
@@ -274,6 +292,7 @@ class DataSelector(View):
                         self.error_text.set(self.error_text.get() + '\ncsv has incorrect format, data load unsuccessful')
                         success = False
             if success:
+                self.games_picked = True
                 self.filter.reset()
                 self.stats.set_games(games)
                 self.selected_games.set_value(value)
