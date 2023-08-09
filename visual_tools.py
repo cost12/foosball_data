@@ -496,7 +496,7 @@ class ButtonGroup(ttk.Frame):
     def add_listener(self, listener):
         self.listeners.append(listener)
 
-    def value_update(self, value):
+    def value_update(self, value:str):
         if self.selected is not None:
             self.buttons[self.selected].configure(style='TButton')
         self.selected = value
@@ -504,3 +504,12 @@ class ButtonGroup(ttk.Frame):
 
         for listener in self.listeners:
             listener.update_value(self.name, value)
+
+    def set_highlight(self, value:str) -> bool:
+        if value in self.buttons.keys():
+            if self.selected is not None:
+                self.buttons[self.selected].configure(style='TButton')
+            self.selected = value
+            self.buttons[self.selected].configure(style='Mod.TButton')
+            return True
+        return False

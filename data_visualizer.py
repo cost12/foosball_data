@@ -125,6 +125,7 @@ class StatsViewControl(ttk.Frame):
         self.views = dict[str, View] ( \
                      {#'info':       InfoScreen(frm),
                       'dataset':    DataSelector(frm, games_options, dates_options),
+                      'filter':     FilterView(frm),
                       'table':      StatTable(frm),
                       'sim':        SimView(frm),
                       'graphs':     GraphView(frm), #TODO: implement these/ come up with more
@@ -134,7 +135,7 @@ class StatsViewControl(ttk.Frame):
                       #'overview':   [],
                       #'leauges':    [],
                       #'game_entry': [],
-                      'filter':     FilterView(frm)} \
+                      } \
         )
         
         self.buttons = ButtonGroup(self.frm, "Screens", list(self.views.keys()),selected=start_screen)
@@ -165,6 +166,7 @@ class StatsViewControl(ttk.Frame):
     def change_view(self,view:str) -> None:
         if len(self.stats.filtered) == 0:
             self.error_text.set("Error: No games selected")
+            self.buttons.set_highlight(self.view)
             return
         if view in self.views and view != self.view:
             self.error_text.set("No Errors Detected")
@@ -172,10 +174,11 @@ class StatsViewControl(ttk.Frame):
             self.views[self.view].detach()
             self.view = view
             self.views[self.view].attach(self.stats, self.dates, self.filter)
-            #self.views[self.view].reset()
             self.views[self.view].pack(fill='y',expand=True,side='top')
 
-
+"""
+Select which datasets will be loaded and used
+"""
 class DataSelector(View):
 
     def __init__(self, frm:ttk.Frame, games_options:list[utils.SheetIdentifier], dates_options:list[utils.SheetIdentifier]):
@@ -459,6 +462,7 @@ class SimView(View):
             self.stats = stats
             self.dates = dates
             self.simulator.attach(self.stats)
+            self.update_labels()
 
     def detach(self):
         self.attached = False
@@ -503,19 +507,6 @@ class SimView(View):
     def add_goal(self,player:str) -> None:
         self.simulator.add_goal(player)
         self.update_labels()
-
-    """
-    Filter the games by a date range
-    
-    def filter_applied(self,name:str) -> None:
-        self.reset()
-
-    
-    Reset the filter/ go back to games from all time frames
-    
-    def filter_reset(self) -> None:
-        self.reset()
-    """
 
     """
     Updates the labels with new information from the simulation
@@ -769,19 +760,6 @@ class StatTable(View):
             self.view = view
             self.reset()
 
-    """
-    Filter the games by a date range
-    
-    def filter_applied(self,name:str) -> None:
-        self.reset()
-
-    
-    Reset the filter/ go back to games from all time frames
-    
-    def filter_reset(self) -> None:
-        self.reset()
-    """
-
 """
 Interaction and visualization for a filter
 """
@@ -846,17 +824,17 @@ class FilterView(View):
         self.number_range.set_max_val(self.stats.max_num())
 
         if self.filter.initialized:
-            self.winner_select.deselect_all()
+            self.winner_select.deselect_all(like_click=False)
             for player in self.filter.winners:
-                self.winner_select.select(player)
+                self.winner_select.select(player, like_click=False)
 
-            self.loser_select.deselect_all()
+            self.loser_select.deselect_all(like_click=False)
             for player in self.filter.losers:
-                self.loser_select.select(player)
+                self.loser_select.select(player, like_click=False)
 
-            self.event_select.deselect_all()
+            self.event_select.deselect_all(like_click=False)
             for event in self.filter.date_ranges:
-                self.event_select.select(event.name)
+                self.event_select.select(event.name, like_click=False)
 
             self.loser_score_range.set_low_val(self.filter.lose_score_min)
             self.loser_score_range.set_high_val(self.filter.lose_score_max)
@@ -865,9 +843,9 @@ class FilterView(View):
             self.number_range.set_high_val(self.filter.number_max)
 
             if self.filter.restrict:
-                self.restrict_select.select_all()
+                self.restrict_select.select_all(like_click=False)
             else:
-                self.restrict_select.deselect_all()
+                self.restrict_select.deselect_all(like_click=False)
         else:
             self.filter.winners.clear()
             self.filter.winners.update(self.winner_select.options)
@@ -886,7 +864,7 @@ class FilterView(View):
 
             self.restrict_select.select_all()
             self.filter.restrict = True
-            self.filter.initialized = False # Yes I want it this way
+            self.filter.initialized = True
 
     def detach(self):
         self.attached = None
