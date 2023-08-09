@@ -320,6 +320,15 @@ class StatCollector:
         elif stat in self.stat_categories:
             print("Error: no stats for {}".format(stat))
 
+    def get_stat(self, stat:str, df:str) -> pd.DataFrame:
+        self.__uses_dfs()
+        if df == 'individual':
+            return self.individual_stats[['Name', stat]]
+        elif df == 'matchup':
+            return self.matchup_stats[['Name', 'Opponent', stat]]
+        elif df == 'games':
+            return self.game_stats[['Number', stat]]
+
     """
     Returns a simulator for p1 and p2
     

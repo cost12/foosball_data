@@ -448,6 +448,23 @@ class LabeledValue(ttk.Frame):
     def set_value(self, value):
         self.value.set(str(value))
 
+class LabelGroup(ttk.Frame):
+
+    def __init__(self, frm:ttk.Frame, name:str, labels:list[tuple[str,any]]):
+        super().__init__(frm, borderwidth=2, relief='groove')
+
+        ttk.Label(self, text=name).grid(row=0,column=0,sticky='news')
+
+        c = 0
+        self.labels = dict[str,LabeledValue]()
+        for label,value in labels:
+            self.labels[label] = LabeledValue(self, label, value)
+            self.labels[label].grid(row=1,column=c,sticky='news')
+            c += 1
+
+    def set_value(self, label, value):
+        self.labels[label].set_value(value)
+
 """
 UI to select buttons
 Like SingleSelector but different style/ use implications

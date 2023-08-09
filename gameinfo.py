@@ -38,6 +38,9 @@ class Streak:
     
     def __repr__(self) -> str:
         return 'Member of Streak'
+    
+    def __ge__(self, other):
+        return not self.__lt__(other)
             
     def __lt__(self, other):
         if self.name == 'L' and other.name == 'W':
