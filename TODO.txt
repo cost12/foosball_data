@@ -5,9 +5,8 @@ TODO: (6 done)
 4. Change attach so simulator is passed in. This is more complicated b/c of the 2 classes of simulators
 
 Bugs: (8 fixed)
-1. Sim view - removed time string, still has some references that cause errors
-2. Sort takes 2 clicks to work sometimes
-3. Filter doesn't keep winners/losers selected when changing screens
+1. Sort takes 2 clicks to work sometimes
+2. Filter doesn't keep winners/losers selected when changing screens
 
 Features to Add:
 1. Leagues - standings, schedule, scores
