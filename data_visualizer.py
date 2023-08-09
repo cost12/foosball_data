@@ -18,15 +18,9 @@ import utils
 import simulator
 from visual_tools import *
 import constants as c
+import records
 
 from urllib.error import URLError
-
-"""
-TODO:
-classes needed:
-    IndividualView
-    LegendsView
-"""
 
 """
 Main loop for tkinter
@@ -131,7 +125,7 @@ class StatsViewControl(ttk.Frame):
                       'graphs':     GraphView(frm), #TODO: implement these/ come up with more
                       #'individual': IndividualView(frm),
                       #'legends':    [],
-                      #'records':    [],
+                      'records':    RecordsView(frm),
                       #'overview':   [],
                       #'leauges':    [],
                       #'game_entry': [],
@@ -1078,6 +1072,54 @@ class GraphView(View):
     """
     def update_labels(self) -> None:
         pass
+
+"""
+Display records accumulated across different time frames
+"""
+class RecordsView(View):
+
+    def __init__(self, frm:ttk.Frame):
+        super().__init__(frm)
+
+        self.records = records.Records()
+
+        record_list = list[tuple[str,str]]()
+        for category in self.records.get_categories():
+            record_list.append((category, "None"))
+
+        self.groups = dict[str,LabelGroup]()
+        r = 0
+        for time_frame in self.records.get_time_frames():
+            self.groups[time_frame] = LabelGroup(self, time_frame.upper(), record_list)
+            self.groups[time_frame].grid(row=r,column=0,sticky='news')
+            r += 1
+
+    def attach(self, stats:sc.StatCollector, dates, filter) -> None:
+        if not self.attached:
+            self.stats = stats
+            self.attached = True
+            self.records.attach(self.stats)
+            self.update_labels()
+
+    def detach(self) -> None:
+        self.stats = None
+        self.attached = False
+        self.records.detach()
+
+    def reset(self) -> None:
+        pass
+    
+    # TODO: this -> need to fill out the records class first though
+    def update_labels(self) -> None:
+        for time_frame in self.groups.keys():
+            for category in self.records.get_categories():
+                record = self.records.get_record(category,time_frame)
+                record_str = ""
+                for player in record[1]:
+                    record_str += f'{record[0]} {player}\n'
+                record_str = record_str[:-1]
+                self.groups[time_frame].set_value(category, record_str)
+
 
 """ TODO: this whole class
 Interaction and visualization for individual achievements
