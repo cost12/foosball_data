@@ -397,7 +397,10 @@ class ValueAdjustor(ttk.Frame):
     If it's within range, increases the value and updates the label
     """
     def increase(self) -> None:
-        if self.max_val is None or self.value < self.max_val:
+        if self.max_val is None:
+            self.value = self.value + self.step
+            self.update_labels()
+        elif self.value < self.max_val:
             self.value = min(self.value + self.step, self.max_val)
             self.update_labels()
 

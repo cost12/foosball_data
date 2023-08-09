@@ -7,6 +7,7 @@ TODO: (6 done)
 Bugs: (8 fixed)
 1. Sort takes 2 clicks to work sometimes
 2. Filter doesn't keep winners/losers selected when changing screens
+3. Force Dates to be selected before leaving DataSelector, allow travel to DataSelector, Filter when none selected
 
 Features to Add:
 1. Leagues - standings, schedule, scores

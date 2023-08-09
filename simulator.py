@@ -32,6 +32,9 @@ class Simulator:
         self.sim_score2 = 0
         self.game_to = 10
 
+    def set_game_to(self, val:int):
+        self.game_to = val
+
     def attach(self, stats:sc.StatCollector):
         if not self.attached:
             self.attached = True

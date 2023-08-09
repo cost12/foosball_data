@@ -325,11 +325,18 @@ class SimView(View):
         # TODO: simulator should be something that gets passed into attach
         self.simulator = simulator.get_simulator(self.player1.get(),self.player2.get(), 'prob' if self.show_probs else 'skill')
 
-        selector = SingleSelector(self,'Simulation Type',['Probability','Skill'])
+        top_frm = ttk.Frame(self)
+
+        selector = SingleSelector(top_frm,'Simulation Type',['Probability','Skill'])
         selector.add_listener(self)
-        selector.grid(row=0,column=1,sticky='news')
+        selector.grid(row=0,column=0,sticky='news')
         self.is_skill = False
 
+        self.goal_points = ValueAdjustor(top_frm, 'Goals to Win', 10, 1, None)
+        self.goal_points.add_listener(self)
+        self.goal_points.grid(row=0,column=1,sticky='news')
+
+        top_frm.grid(row=0,column=0,columnspan=3,sticky='news')
 
         r = 1
         # top row
@@ -437,17 +444,22 @@ class SimView(View):
             self.update_labels()
         ttk.Button(self, text='Scores', command=toggle).grid(row=r,column=1,sticky='news')
 
+        self.row_count = r
+
         self.score_lbls_p1 = []
+        self.score_lbls_num= []
         self.score_lbls_p2 = []
         for i in range(0,11):
             r += 1
             p1_lbl = ttk.Label(self, text=0, anchor='e')
             p1_lbl.grid(row=r,column=0,sticky='news')
-            ttk.Label(self,text=i,anchor='c').grid(row=r,column=1,sticky='news')
+            num_lbl = ttk.Label(self,text=i,anchor='c')
+            num_lbl.grid(row=r,column=1,sticky='news')
             p2_lbl = ttk.Label(self, text=0, anchor='w')
             p2_lbl.grid(row=r,column=2,sticky='news')
 
             self.score_lbls_p1.append(p1_lbl)
+            self.score_lbls_num.append(num_lbl)
             self.score_lbls_p2.append(p2_lbl)
 
     def attach(self, stats:sc.StatCollector, dates:list[event_date.EventDate], filter=None):
@@ -471,15 +483,19 @@ class SimView(View):
     def reset(self) -> None: # TODO: there must be a better way to do this
         self.simulator = simulator.get_simulator(self.player1.get(),self.player2.get(),'skill' if self.is_skill else 'prob')
         self.simulator.attach(self.stats)
-        self.update_labels()
+        self.goal_points.set_value(10)
+        #self.update_labels() - auto called by previous line
 
-    def update_value(self, name:str, selected:str):
+    def update_value(self, name:str, value):
         if name == 'Simulation Type':
-            if selected == 'Probability':
+            if value == 'Probability':
                 self.is_skill = False
             else:
                 self.is_skill = True
             self.reset()
+        elif name == 'Goals to Win':
+            self.simulator.set_game_to(value)
+            self.update_labels()
 
     """
     Simulate a goal
@@ -525,15 +541,52 @@ class SimView(View):
         self.goals_lbl2.config(text=self.simulator.get_goals_for(self.simulator.player2))
 
         if self.show_probs:
-            for i in range(0,11):
-                text = '{:>.3f}'.format(self.simulator.get_prob_of_score(self.simulator.player1,i)*100)
-                self.score_lbls_p1[i].config(text=text)
-                text = '{:>.3f}'.format(self.simulator.get_prob_of_score(self.simulator.player2,i)*100)
-                self.score_lbls_p2[i].config(text=text)
-        else:
-            for i in range(0,11):
-                self.score_lbls_p1[i].config(text=self.simulator.get_times_scored_n(self.simulator.player1,i))
-                self.score_lbls_p2[i].config(text=self.simulator.get_times_scored_n(self.simulator.player2,i))
+            rows_used = self.simulator.game_to+1
+            for i in range(0,rows_used):
+                if i < len(self.score_lbls_num):
+                    text = '{:>.3f}'.format(self.simulator.get_prob_of_score(self.simulator.player1,i)*100)
+                    self.score_lbls_p1[i].config(text=text)
+                    text = '{:>.3f}'.format(self.simulator.get_prob_of_score(self.simulator.player2,i)*100)
+                    self.score_lbls_p2[i].config(text=text)
+                else:
+                    r = self.row_count+i+1
+                    text = '{:>.3f}'.format(self.simulator.get_prob_of_score(self.simulator.player1,i)*100)
+                    p1_lbl = ttk.Label(self, text=text, anchor='e')
+                    p1_lbl.grid(row=r,column=0,sticky='news')
+                    num_lbl = ttk.Label(self,text=i,anchor='c')
+                    num_lbl.grid(row=r,column=1,sticky='news')
+                    text = '{:>.3f}'.format(self.simulator.get_prob_of_score(self.simulator.player2,i)*100)
+                    p2_lbl = ttk.Label(self, text=text, anchor='w')
+                    p2_lbl.grid(row=r,column=2,sticky='news')
+
+                    self.score_lbls_p1.append(p1_lbl)
+                    self.score_lbls_num.append(num_lbl)
+                    self.score_lbls_p2.append(p2_lbl)
+        else: # show results
+            rows_used = 10 + 1
+            for i in range(0,rows_used):
+                if i < len(self.score_lbls_num):
+                    self.score_lbls_p1[i].config(text=self.simulator.get_times_scored_n(self.simulator.player1,i))
+                    self.score_lbls_p2[i].config(text=self.simulator.get_times_scored_n(self.simulator.player2,i))
+                else:
+                    r = self.row_count+i
+                    p1_lbl = ttk.Label(self, text=self.simulator.get_times_scored_n(self.simulator.player1,i), anchor='e')
+                    p1_lbl.grid(row=r,column=0,sticky='news')
+                    num_lbl = ttk.Label(self,text=i,anchor='c')
+                    num_lbl.grid(row=r,column=1,sticky='news')
+                    p2_lbl = ttk.Label(self, text=self.simulator.get_times_scored_n(self.simulator.player2,i), anchor='w')
+                    p2_lbl.grid(row=r,column=2,sticky='news')
+
+                    self.score_lbls_p1.append(p1_lbl)
+                    self.score_lbls_num.append(num_lbl)
+                    self.score_lbls_p2.append(p2_lbl)
+        for i in range(rows_used,len(self.score_lbls_num)):
+            self.score_lbls_p1[i].destroy()
+            self.score_lbls_num[i].destroy()
+            self.score_lbls_p2[i].destroy()
+        self.score_lbls_p1 = self.score_lbls_p1[0:rows_used]
+        self.score_lbls_num= self.score_lbls_num[0:rows_used]
+        self.score_lbls_p2 = self.score_lbls_p2[0:rows_used]
             
 """
 Interaction and visualization for StatCollector
