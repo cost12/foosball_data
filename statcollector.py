@@ -7,7 +7,6 @@ import gameinfo
 import colley
 import elo
 import myranks
-import simulator
 import event_date
 import gamefilter
 
@@ -319,19 +318,6 @@ class StatCollector:
             return self.game_stats[self.stat_categories[stat]]
         elif stat in self.stat_categories:
             print("Error: no stats for {}".format(stat))
-
-    """
-    Returns a simulator for p1 and p2
-    
-    def get_simulator(self,p1:str,p2:str,by_skill=False) -> simulator.Simulator:
-        if by_skill:
-            sim = simulator.SkillSimulator(p1,p2)
-            sim.attach(self)
-            return sim
-        sim = simulator.ProbabilitySimulator(p1,p2)
-        sim.attach(self)
-        return sim
-    """
 
     """
     Filters the games by selecting ones from the given timeframe and returns a new StatCollector, or updates the current one

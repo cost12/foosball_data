@@ -1,6 +1,6 @@
 import random
 
-#import statcollector as sc
+import statcollector as sc
 import foosballgame
 
 """
@@ -32,7 +32,7 @@ class Simulator:
         self.sim_score2 = 0
         self.game_to = 10
 
-    def attach(self, stats): #:sc.StatCollector) TODO: figure out how to type hint here
+    def attach(self, stats:sc.StatCollector):
         if not self.attached:
             self.attached = True
             self.stats = stats
