@@ -3,6 +3,7 @@ from tkinter import ttk
 import pandas as pd
 import matplotlib.pyplot
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import datetime
 
 import data_read_in
 import statcollector as sc
@@ -1160,11 +1161,11 @@ class RecordsView(View):
             record_list.append((category, "None"))
 
         self.groups = dict[str,LabelGroup]()
-        r = 0
+        i = 0
         for time_frame in self.records.get_time_frames():
             self.groups[time_frame] = LabelGroup(self, time_frame.upper(), record_list)
-            self.groups[time_frame].grid(row=r,column=0,sticky='news')
-            r += 1
+            self.groups[time_frame].grid(row=i//2,column=i%2,sticky='news')
+            i += 1
 
     def attach(self, stats:sc.StatCollector, dates, filter) -> None:
         if not self.attached:
@@ -1188,7 +1189,10 @@ class RecordsView(View):
                 record = self.records.get_record(category,time_frame)
                 record_str = ""
                 for player in record[1]:
-                    record_str += f'{record[0]} {player}\n'
+                    if 'day' in time_frame:
+                        record_str += f'{record[0]} {player[0]} ({player[1].strftime("%b %#d, %y")})\n'
+                    else:
+                        record_str += f'{record[0]} {player}\n'
                 record_str = record_str[:-1]
                 self.groups[time_frame].set_value(category, record_str)
 

@@ -19,7 +19,7 @@ class StatCollector:
      - change internal representation for statcollector to dictionaries
         - need to learn how to get double dict to dataframe in correct way
      - 
-    TO DO:
+    TODO:
      - game watch/input
      - better/more options for filter
      - text to show selections/filter
@@ -75,6 +75,8 @@ class StatCollector:
     def __recalculate(self) -> None:
         self.__init_dicts(self.filtered)
         self.__build_dfs()
+
+        
 
     """
     Call at the start of any function that uses internal dicts

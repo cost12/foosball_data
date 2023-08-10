@@ -456,7 +456,7 @@ class LabelGroup(ttk.Frame):
     def __init__(self, frm:ttk.Frame, name:str, labels:list[tuple[str,any]]):
         super().__init__(frm, borderwidth=2, relief='groove')
 
-        ttk.Label(self, text=name).grid(row=0,column=0,sticky='news')
+        ttk.Label(self, text=name).grid(row=0,column=0,columnspan=len(labels),sticky='news')
 
         c = 0
         self.labels = dict[str,LabeledValue]()
