@@ -263,7 +263,10 @@ class DataSelector(View):
                 self.dates_picked = True
                 self.dates.clear()
                 self.dates.extend(dates)
-                self.selected_dates.set_value(value)
+                selected_txt = value
+                if date_fnf or date_bad_format:
+                    selected_txt += ' (local)'
+                self.selected_dates.set_value(selected_txt)
         elif name == 'Games Selection':
             sheet = self.games_dict[value]
             game_fnf = False
@@ -296,7 +299,10 @@ class DataSelector(View):
                 self.games_picked = True
                 self.filter.reset()
                 self.stats.set_games(games)
-                self.selected_games.set_value(value)
+                selected_txt = value
+                if game_fnf or game_bad_format:
+                    selected_txt += ' (local)'
+                self.selected_games.set_value(selected_txt)
 
         # exit loading screen
         

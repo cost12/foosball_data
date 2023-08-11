@@ -14,6 +14,9 @@ Features to Add:
 2. Individual Overview
 3. Info
 4. Records
+5. Tournaments
+6. Error checking/ validation for all datasets
+7. Move to SQL database? Move to local csvs as main?
 
 Table Features:
 1. Choose how many rows appear in table
@@ -31,6 +34,11 @@ Filter Features:
 Dataset Features:
 1. Be able to add datasets
 2. Don't allow clicks while stuff is loading
+
+Record Features:
+1. Need to be able to pass semesters in
+2. Records for all semesters?
+3. All time records (needed?)
 
 Needs Testing:
 
