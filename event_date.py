@@ -1,3 +1,5 @@
+import datetime
+
 class EventDate:
 
     def __init__(self,n,s,e):
@@ -10,3 +12,11 @@ class EventDate:
     """
     def contains_date(self, date):
         return self.start_date <= date and date < self.end_date
+    
+
+
+def get_event(date:datetime.date, events):
+    for event in events:
+        if event.contains_date(date):
+            return event
+    return None

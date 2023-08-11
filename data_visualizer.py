@@ -1167,15 +1167,17 @@ class RecordsView(View):
             self.groups[time_frame].grid(row=i//2,column=i%2,sticky='news')
             i += 1
 
-    def attach(self, stats:sc.StatCollector, dates, filter) -> None:
+    def attach(self, stats:sc.StatCollector, dates:list[event_date.EventDate], filter) -> None:
         if not self.attached:
             self.stats = stats
+            self.dates = dates
             self.attached = True
-            self.records.attach(self.stats)
+            self.records.attach(self.stats, self.dates) # TODO: only pass in semesters?
             self.update_labels()
 
     def detach(self) -> None:
         self.stats = None
+        self.dates = None
         self.attached = False
         self.records.detach()
 
@@ -1191,6 +1193,8 @@ class RecordsView(View):
                 for player in record[1]:
                     if 'day' in time_frame:
                         record_str += f'{record[0]} {player[0]} ({player[1].strftime("%b %#d, %y")})\n'
+                    elif 'semester' in time_frame:
+                        record_str += f'{record[0]} {player[0]} ({player[1]})\n'
                     else:
                         record_str += f'{record[0]} {player}\n'
                 record_str = record_str[:-1]
