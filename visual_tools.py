@@ -163,7 +163,7 @@ Select a value from a list of values
 """
 class SingleSelector(ttk.Frame):
 
-    def __init__(self, frm:ttk.Frame, name:str, options:list, apply_btn:bool=False, sorted:bool=True) -> None:
+    def __init__(self, frm:ttk.Frame, name:str, options:list, *, selected:str=None, apply_btn:bool=False, sorted:bool=True) -> None:
         super().__init__(frm, borderwidth=2, relief='groove')
 
         self.frm = frm
@@ -182,6 +182,8 @@ class SingleSelector(ttk.Frame):
 
         if self.apply_btn:
             ttk.Button(self, text='Apply', command=self.value_update).grid(row=len(self.options)+1,column=0,columnspan=2,sticky='news')
+        if selected is not None and selected in self.options:
+            self.selected.set(selected)
 
     def __place_buttons(self):
         if self.sorted:
@@ -533,3 +535,37 @@ class ButtonGroup(ttk.Frame):
             self.buttons[self.selected].configure(style='Mod.TButton')
             return True
         return False
+
+class LabeledEntry(ttk.Frame):
+
+    def __init__(self, frm:ttk.Frame, label:str, apply_btn:bool=True,*,additional_buttons:dict[str,]=None):#TODO figure out how to type hint functions
+        super().__init__(frm, borderwidth=2, relief='groove')
+
+        self.label = label
+        self.apply_btn = apply_btn
+        self.entry = tk.StringVar()
+        self.listeners = []
+
+        r = 0
+        ttk.Label(self,text=self.label).grid(row=r,column=0,sticky='news')
+        ttk.Entry(self,textvariable=self.entry).grid(row=r+1,column=0,sticky='news')
+        r += 2
+        if self.apply_btn:
+            ttk.Button(self,text='Apply',command=self.value_update).grid(row=r,column=0,sticky='news')
+            r += 1
+        for name in additional_buttons:
+            ttk.Button(self,text=name,command=additional_buttons[name]).grid(row=r,column=0,sticky='news')
+            r += 1
+
+    def get_entry(self) -> str:
+        return self.entry.get()
+    
+    def set_entry(self, string):
+        self.entry.set(string)
+
+    def add_listenter(self, listener):
+        self.listeners.append(listener)
+
+    def value_update(self):
+        for listener in self.listeners:
+            listener.update_value(self.label, self.entry.get())

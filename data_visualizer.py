@@ -133,6 +133,7 @@ class StatsViewControl(ttk.Frame):
                       #'individual': IndividualView(frm),
                       #'legends':    [],
                       'records':    RecordsView(frm),
+                      'tournaments': TournamentsView(frm),
                       #'overview':   [],
                       #'leauges':    [],
                       #'game_entry': [],
@@ -1206,6 +1207,64 @@ class RecordsView(View):
                 record_str = record_str[:-1]
                 self.groups[time_frame].set_value(category, record_str)
 
+class TournamentsView(View):
+
+    def __init__(self, frm:ttk.Frame):
+        super().__init__(frm)
+
+        top_frame = ttk.Frame(self)
+        top_frame.grid(row=0,column=0,columnspan=999)
+        ttk.Button(top_frame,text="Add Player",command=self.add_player_slot).grid(row=0,column=0,sticky='news')
+        ttk.Button(top_frame,text="Start Tournament",command=self.start_tournament).grid(row=0,column=4,sticky='news')
+        
+        self.seed_selector = SingleSelector(top_frame, "Seeding", ["as entered","skill","random"], selected='as entered')
+        self.seed_selector.grid(row=0,column=1,sticky='news')
+        
+        self.type_selector = SingleSelector(top_frame, "Type", ["single elimination","double elimination","round robin"],selected='single elimination')
+        self.type_selector.grid(row=0,column=2,sticky='news')
+        
+        self.reseed_selector = SingleSelector(top_frame, "Round Seeding", ["fixed seeding","round reseeding"],selected='fixed seeding')
+        self.reseed_selector.grid(row=0,column=3,sticky='news')
+
+        self.player_entries = list[LabeledEntry]()
+        for i in range(4):
+            def remove(a=i):
+                return lambda : self.remove_player_slot(a)
+            self.player_entries.append(LabeledEntry(self,f'Player {i+1}', apply_btn=False, additional_buttons={'Remove':remove()}))
+            self.player_entries[i].grid(row=i+1,column=0)
+
+    def start_tournament(self):
+        pass
+    
+    def add_player_slot(self):
+        num_players = len(self.player_entries)
+        self.player_entries.append(LabeledEntry(self,f'Player {num_players+1}', apply_btn=False, additional_buttons={'Remove':lambda : self.remove_player_slot(num_players)}))
+        per_col = 7
+        self.player_entries[-1].grid(row=num_players%per_col+1,column=num_players//per_col)
+
+    def remove_player_slot(self, slot:int) -> bool:
+        if (len(self.player_entries)) <= 1:
+            return False
+        for i in range(slot,len(self.player_entries)-1):
+            self.player_entries[i].set_entry(self.player_entries[i+1].get_entry())
+        self.player_entries[-1].destroy()
+        self.player_entries.remove(self.player_entries[-1])
+        return True
+
+    def attach(self, stats:sc.StatCollector, dates=None, filter=None) -> None:
+        if not self.attached:
+            self.attached = True
+            self.stats = stats
+
+    def detach(self) -> None:
+        self.attached = False
+        self.stats = None
+
+    def reset(self) -> None:
+        pass
+
+    def update_labels(self) -> None:
+        pass
 
 """ TODO: this whole class
 Interaction and visualization for individual achievements
@@ -1260,3 +1319,22 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+"""
+class ViewSkeleton(View):
+
+    def __init__(self, frm:ttk.Frame):
+        super().__init__(frm)
+
+    def attach(self, stats:sc.StatCollector, dates:list[event_date.EventDate], filter:gamefilter.GameFilter) -> None:
+        pass
+
+    def detach(self) -> None:
+        pass
+
+    def reset(self) -> None:
+        pass
+
+    def update_labels(self) -> None:
+        pass
+"""
