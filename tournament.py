@@ -66,7 +66,7 @@ class Tournament:
             if self.round_results[-1].is_over():
                 if not self.is_over():
                     id = len(self.round_results)
-                    round = TournamentRound(id,self.players,self.type,self.reseeding,self.round_results[-1].winners())
+                    round = TournamentRound(id,self.players,self.type,self.reseeding,self.round_results[-1].advancers())
                     round.add_listener(self)
                     self.round_results.append(round)
                     return True
@@ -86,8 +86,12 @@ class Tournament:
         for listener in self.listeners:
             listener.update_tournament(self.id)
     
+    def winner(self):
+        if self.is_over():
+            return self.round_results[-1].advancers()[0]
+
     def is_over(self):
-        return len(self.round_results[-1].winners()) <= 1
+        return self.started and self.round_results[-1].is_over() and len(self.round_results[-1].advancers()) <= 1
     
     def round_over(self) -> bool:
         return self.round_results[-1].is_over()
@@ -179,6 +183,7 @@ class TournamentRound:
             self.round_players = list(self.seeded_players)
         else:
             self.round_players = prev_winners
+        self.bye_players = []
 
         self.started = False
         self.type = round_type
@@ -220,6 +225,7 @@ class TournamentRound:
                 matchup = foosballgame.FoosballMatchup(self.round_players[start+i],self.round_players[start+i+1],i//2)
                 matchup.add_listener(self)
                 self.matchups.append(matchup)
+        self.bye_players = list(self.round_players[0:start])
         
     def update_matchup(self, id):
         if self.is_over():
@@ -231,21 +237,27 @@ class TournamentRound:
                 return False
         return True
     
+    def advancers(self) -> list[str]:
+        advancers = list[str]()
+        advancers.extend(self.bye_players)
+        for matchup in self.matchups:
+            if matchup.is_over():
+                advancers.append(matchup.winner())
+        return advancers
+    
     def winners(self) -> list[str]:
-        if self.is_over():
-            winners = list[str]()
-            for matchup in self.matchups:
+        winners = list[str]()
+        for matchup in self.matchups:
+            if matchup.is_over():
                 winners.append(matchup.winner())
-            return winners
-        return []
+        return winners
     
     def losers(self) -> list[str]:
-        if self.is_over():
-            losers = list[str]()
-            for matchup in self.matchups:
+        losers = list[str]()
+        for matchup in self.matchups:
+            if matchup.is_over():
                 losers.append(matchup.loser())
-            return losers
-        return []
+        return losers
 
     def attach(self,stats:sc.StatCollector) -> bool:
         if not self.attached:

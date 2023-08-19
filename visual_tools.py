@@ -624,11 +624,15 @@ class BracketView(ttk.Frame):
         super().__init__(frm)
         self.attached = False
         self.tournament = None
+        self.views=list[MatchupView]()
 
     def attach(self, tournament:tournament.Tournament) -> None:
         if not self.attached:
             self.attached = True
             self.tournament = tournament
+
+            for view in self.views:
+                view.destroy()
 
             self.update()
 
@@ -640,6 +644,7 @@ class BracketView(ttk.Frame):
                 new = MatchupView(self)
                 new.attach(matchup)
                 new.grid(row=r,column=c,sticky='news')
+                self.views.append(new)
                 r += 1
             c += 1
 

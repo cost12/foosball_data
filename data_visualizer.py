@@ -1266,6 +1266,9 @@ class TournamentInteractView(View):
                 ttk.Button(top_frame,text=name,command=additional_buttons[name]).grid(row=0,column=c,sticky='news')
                 c += 1
 
+        self.winner_lbl = LabeledValue(top_frame,"Winner","")
+        self.winner_lbl.grid(row=0,column=c,sticky='news')
+
         self.bracket_view = BracketView(self)
         self.bracket_view.grid(row=1,column=0,sticky='news')
         self.tournament = None
@@ -1282,10 +1285,18 @@ class TournamentInteractView(View):
         self.bracket_view.detach()
         self.bracket_view.attach(tournament)
 
+        if self.tournament.is_over():
+            self.winner_lbl.set_value(self.tournament.winner())
+        else:
+            self.winner_lbl.set_value("")
+
     def update_tournament(self, id):
         if self.tournament.round_over():
             self.tournament.advance()
             self.bracket_view.update()
+
+        if self.tournament.is_over():
+            self.winner_lbl.set_value(self.tournament.winner())
 
     def attach(self, stats:sc.StatCollector, dates:list[event_date.EventDate]=None, filter:gamefilter.GameFilter=None) -> None:
         if not self.attached:
@@ -1318,10 +1329,10 @@ class TournamentCreatorView(View):
         self.seed_selector = SingleSelector(top_frame, "Seeding", ["as entered","skill","random"], selected='as entered')
         self.seed_selector.grid(row=0,column=2,sticky='news')
         
-        self.type_selector = SingleSelector(top_frame, "Type", ["single elimination","double elimination","round robin"],selected='single elimination')
+        self.type_selector = SingleSelector(top_frame, "Type", ["single elimination"],selected='single elimination') #,"double elimination","round robin"
         self.type_selector.grid(row=0,column=3,sticky='news')
         
-        self.reseed_selector = SingleSelector(top_frame, "Round Seeding", ["fixed seeding","round reseeding"],selected='fixed seeding')
+        self.reseed_selector = SingleSelector(top_frame, "Round Seeding", ["round reseeding"],selected='round reseeding')#"fixed seeding",
         self.reseed_selector.grid(row=0,column=4,sticky='news')
 
         c = 5
