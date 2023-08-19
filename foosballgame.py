@@ -40,6 +40,98 @@ class FoosballGame:
 			return 'W'
 		else:
 			return 'B'
+		
+class FoosballMatchup:
+
+	def __init__(self, home:str, away:str, id, home_color:str='B', date:datetime.date=None, *, home_score:int=0, away_score:int=0, game_to:int=10, win_by=1):
+		self.home_team = home
+		self.away_team = away
+		self.home_color = home_color
+		self.date = date
+		self.home_score = home_score
+		self.away_score = away_score
+		self.game_to = game_to
+		self.win_by = win_by
+		self.id = id
+
+		self.listeners = []
+
+	def add_listener(self, listener):
+		self.listeners.append(listener)
+
+	def notify_listeners(self):
+		for listener in self.listeners:
+			listener.update_matchup(self.id)
+
+	def to_foosball_game(self, number:int, date:datetime.date=None) -> FoosballGame|None:
+		if self.is_over():
+			if date is not None:
+				self.date = date
+			elif self.date is None:
+				return None
+			return FoosballGame(self.winner(),self.loser(),self.get_score(self.winner()),self.get_score(self.loser()),self.get_color(self.winner()),self.date,number)
+		return None
+	
+	def reset(self):
+		self.home_score = 0
+		self.away_score = 0
+
+	def is_over(self):
+		if self.home_score >= self.game_to and self.home_score - self.away_score >= self.win_by:
+			return True
+		elif self.away_score >= self.game_to and self.away_score - self.home_score >= self.win_by:
+			return True
+		return False
+	
+	def get_score(self, player:str) -> int:
+		if player == self.home_team:
+			return self.home_score
+		if player == self.away_team:
+			return self.away_team
+		return 0
+	
+	def get_color(self, player:str) -> str:
+		if player == self.home_team:
+			return self.home_color
+		if player == self.away_team:
+			if self.home_color == 'B':
+				return 'W'
+			else:
+				return 'B'
+		return None
+	
+	def winner(self) -> str|None:
+		if self.is_over():
+			if self.home_score > self.away_score:
+				return self.home_team
+			else:
+				return self.away_team
+		return None
+	
+	def loser(self) -> str|None:
+		if self.is_over():
+			if self.home_score > self.away_score:
+				return self.away_team
+			else:
+				return self.home_team
+		return None
+	
+	def set_score(self, player:str, score:int):
+		if not self.is_over():
+			if player == self.home_team:
+				self.home_score = score
+			if player == self.away_team:
+				self.away_score = score
+			self.notify_listeners()
+
+	def add_goal(self, player:str):
+		if not self.is_over():
+			if player == self.home_team:
+				self.home_score += 1
+			if player == self.away_team:
+				self.away_score += 1
+			self.notify_listeners()
+
 
 	def __repr__(self):
 		return "{:<8} {:>2} {:<8} {:>2}    {:>4} On: {:>10}, WC: {})".format( self.winner,  \

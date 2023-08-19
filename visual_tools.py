@@ -3,6 +3,8 @@ from tkinter import ttk
 from typing import Union
 
 import constants as c
+import foosballgame
+import tournament
 
 """ TODO: should duplicates be allowed? right now they are
 Select values from a list of values
@@ -553,9 +555,10 @@ class LabeledEntry(ttk.Frame):
         if self.apply_btn:
             ttk.Button(self,text='Apply',command=self.value_update).grid(row=r,column=0,sticky='news')
             r += 1
-        for name in additional_buttons:
-            ttk.Button(self,text=name,command=additional_buttons[name]).grid(row=r,column=0,sticky='news')
-            r += 1
+        if additional_buttons is not None:
+            for name in additional_buttons:
+                ttk.Button(self,text=name,command=additional_buttons[name]).grid(row=r,column=0,sticky='news')
+                r += 1
 
     def get_entry(self) -> str:
         return self.entry.get()
@@ -569,3 +572,83 @@ class LabeledEntry(ttk.Frame):
     def value_update(self):
         for listener in self.listeners:
             listener.update_value(self.label, self.entry.get())
+
+class MatchupView(ttk.Frame):
+
+    def __init__(self, frm:ttk.Frame):
+        super().__init__(frm, borderwidth=2, relief='groove')
+
+        self.attached = False
+        self.matchup = None
+
+    def attach(self, matchup:foosballgame.FoosballMatchup) -> None:
+        if not self.attached:
+            self.attached = True
+            self.matchup = matchup
+
+            if self.matchup.is_over():
+                self.home = LabeledValue(self,self.matchup.home_team,self.matchup.home_score)
+                self.home.grid(row=1,column=0,sticky='news')
+                self.away = LabeledValue(self,self.matchup.away_team,self.matchup.away_score)
+                self.away.grid(row=0,column=0,sticky='news')
+            else:
+                self.home = ValueAdjustor(self,self.matchup.home_team,self.matchup.home_score,0,self.matchup.game_to)
+                self.away = ValueAdjustor(self,self.matchup.away_team,self.matchup.away_score,0,self.matchup.game_to)
+
+                self.home.add_listener(self)
+                self.away.add_listener(self)
+
+                self.home.grid(row=1,column=0,sticky='news')
+                self.away.grid(row=0,column=0,sticky='news')
+
+    def detach(self) -> None:
+        self.attached = False
+        self.matchup = None
+
+        self.home.destroy()
+        self.away.destroy()
+
+    def update_value(self, name, value):
+        self.matchup.set_score(name, value)
+        if self.matchup.is_over():
+            self.home.destroy()
+            self.away.destroy()
+            self.home = LabeledValue(self,self.matchup.home_team,self.matchup.home_score)
+            self.home.grid(row=1,column=0,sticky='news')
+            self.home = LabeledValue(self,self.matchup.away_team,self.matchup.away_score)
+            self.home.grid(row=0,column=0,sticky='news')
+
+class BracketView(ttk.Frame):
+
+    def __init__(self, frm:ttk.Frame):
+        super().__init__(frm)
+        self.attached = False
+        self.tournament = None
+
+    def attach(self, tournament:tournament.Tournament) -> None:
+        if not self.attached:
+            self.attached = True
+            self.tournament = tournament
+
+            self.update()
+
+    def update(self):
+        c = 0
+        for round in self.tournament.round_results:
+            r = 0
+            for matchup in round.matchups:
+                new = MatchupView(self)
+                new.attach(matchup)
+                new.grid(row=r,column=c,sticky='news')
+                r += 1
+            c += 1
+
+    def detach(self) -> None:
+        self.attached = False
+        self.tournament = None
+
+    def reset(self) -> None:
+        pass
+
+    def update_labels(self) -> None:
+        pass

@@ -26,6 +26,7 @@ Sim Features:
 1. Be able to input games to sheets
 2. Be able to see all score probabilities even when games are to high numbers
 3. Be able to choose win by 2/1
+4. Use FoosballMatchup
 
 Filter Features:
 1. Make it easier to select Number/ not just +/- 1
@@ -37,7 +38,7 @@ Dataset Features:
 
 Record Features:
 1. Need to be able to pass semesters in
-2. Records for all semesters?
+2. Records for all time frames/ filtered/ by day instead of all time
 3. All time records (needed?)
 
 Needs Testing:

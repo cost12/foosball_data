@@ -3,7 +3,7 @@ import random
 import statcollector as sc
 import foosballgame
 
-"""
+""" TODO: use foosballgame.FoosballMatchup
 Class is used to simulate a matchup between two players
 
 Potential overlap with matchup.Matchup

@@ -20,6 +20,7 @@ import simulator
 from visual_tools import *
 import constants as c
 import records
+import tournament
 
 from urllib.error import URLError
 
@@ -125,15 +126,15 @@ class StatsViewControl(ttk.Frame):
         self.view = start_screen
         self.views = dict[str, View] ( \
                      {#'info':       InfoScreen(frm),
-                      'dataset':    DataSelector(frm, games_options, dates_options),
-                      'filter':     FilterView(frm),
-                      'table':      StatTable(frm),
-                      'sim':        SimView(frm),
-                      'graphs':     GraphView(frm), #TODO: implement these/ come up with more
+                      'dataset':     DataSelector(frm, games_options, dates_options),
+                      'filter':      FilterView(frm),
+                      'table':       StatTable(frm),
+                      'sim':         SimView(frm),
+                      'graphs':      GraphView(frm), #TODO: implement these/ come up with more
                       #'individual': IndividualView(frm),
                       #'legends':    [],
-                      'records':    RecordsView(frm),
-                      'tournaments': TournamentsView(frm),
+                      'records':     RecordsView(frm),
+                      'tournaments': TournamentView(frm),
                       #'overview':   [],
                       #'leauges':    [],
                       #'game_entry': [],
@@ -1207,24 +1208,127 @@ class RecordsView(View):
                 record_str = record_str[:-1]
                 self.groups[time_frame].set_value(category, record_str)
 
-class TournamentsView(View):
+class TournamentView(View):
 
     def __init__(self, frm:ttk.Frame):
+        super().__init__(frm)
+
+        self.creator = TournamentCreatorView(self, additional_buttons={'Start Tournament':self.create_tournament})
+        self.interactor = TournamentInteractView(self, additional_buttons={'New Tournament':self.new_tournament})
+
+        self.creator.pack()
+        self.interactor.pack()
+        self.interactor.forget()
+
+    def create_tournament(self):
+        self.creator.forget()
+        self.interactor.set_tournament(self.creator.get_tournament())
+        self.interactor.pack()
+
+    def new_tournament(self):
+        self.interactor.forget()
+        self.creator.reset()
+        self.creator.pack()
+
+    def attach(self, stats:sc.StatCollector, dates:list[event_date.EventDate]=None, filter:gamefilter.GameFilter=None) -> None:
+        if not self.attached:
+            self.attached = True
+            self.stats = stats
+            self.creator.attach(stats)
+            self.interactor.attach(stats)
+
+    def detach(self) -> None:
+        self.attached = False
+        self.stats = None
+        self.creator.detach()
+        self.interactor.detach()
+
+    def reset(self) -> None:
+        pass
+
+    def update_labels(self) -> None:
+        pass
+
+class TournamentInteractView(View):
+
+    def __init__(self, frm:ttk.Frame, *, additional_buttons:dict[str,]=None):
+        super().__init__(frm)
+
+        top_frame = ttk.Frame(self)
+        top_frame.grid(row=0,column=0,columnspan=1)
+
+        self.name = tk.StringVar()
+        ttk.Label(top_frame,textvariable=self.name).grid(row=0,column=0,sticky='news')
+
+        c = 1
+        if additional_buttons is not None:
+            for name in additional_buttons:
+                ttk.Button(top_frame,text=name,command=additional_buttons[name]).grid(row=0,column=c,sticky='news')
+                c += 1
+
+        self.bracket_view = BracketView(self)
+        self.bracket_view.grid(row=1,column=0,sticky='news')
+        self.tournament = None
+
+    def set_tournament(self, tournament:tournament.Tournament):
+        if self.tournament is not None:
+            self.tournament.detach()
+            self.tournament.remove_listener(self)
+        self.tournament = tournament
+        self.tournament.attach(self.stats)
+        self.tournament.add_listener(self)
+        self.tournament.begin()
+        self.name.set(tournament.id)
+        self.bracket_view.detach()
+        self.bracket_view.attach(tournament)
+
+    def update_tournament(self, id):
+        if self.tournament.round_over():
+            self.tournament.advance()
+            self.bracket_view.update()
+
+    def attach(self, stats:sc.StatCollector, dates:list[event_date.EventDate]=None, filter:gamefilter.GameFilter=None) -> None:
+        if not self.attached:
+            self.attached = True
+            self.stats = stats
+
+    def detach(self) -> None:
+        self.attached = False
+        self.stats = None
+
+    def reset(self) -> None:
+        pass
+
+    def update_labels(self) -> None:
+        pass
+
+class TournamentCreatorView(View):
+
+    def __init__(self, frm:ttk.Frame, *, additional_buttons:dict[str,]=None):
         super().__init__(frm)
 
         top_frame = ttk.Frame(self)
         top_frame.grid(row=0,column=0,columnspan=999)
         ttk.Button(top_frame,text="Add Player",command=self.add_player_slot).grid(row=0,column=0,sticky='news')
-        ttk.Button(top_frame,text="Start Tournament",command=self.start_tournament).grid(row=0,column=4,sticky='news')
+        #ttk.Button(top_frame,text="Start Tournament",command=self.start_tournament).grid(row=0,column=4,sticky='news')
         
+        self.name_entry = LabeledEntry(top_frame, "Name")
+        self.name_entry.grid(row=0,column=1,sticky='news')
+
         self.seed_selector = SingleSelector(top_frame, "Seeding", ["as entered","skill","random"], selected='as entered')
-        self.seed_selector.grid(row=0,column=1,sticky='news')
+        self.seed_selector.grid(row=0,column=2,sticky='news')
         
         self.type_selector = SingleSelector(top_frame, "Type", ["single elimination","double elimination","round robin"],selected='single elimination')
-        self.type_selector.grid(row=0,column=2,sticky='news')
+        self.type_selector.grid(row=0,column=3,sticky='news')
         
         self.reseed_selector = SingleSelector(top_frame, "Round Seeding", ["fixed seeding","round reseeding"],selected='fixed seeding')
-        self.reseed_selector.grid(row=0,column=3,sticky='news')
+        self.reseed_selector.grid(row=0,column=4,sticky='news')
+
+        c = 5
+        if additional_buttons is not None:
+            for name in additional_buttons:
+                ttk.Button(top_frame,text=name,command=additional_buttons[name]).grid(row=0,column=c,sticky='news')
+                c += 1
 
         self.player_entries = list[LabeledEntry]()
         for i in range(4):
@@ -1233,8 +1337,16 @@ class TournamentsView(View):
             self.player_entries.append(LabeledEntry(self,f'Player {i+1}', apply_btn=False, additional_buttons={'Remove':remove()}))
             self.player_entries[i].grid(row=i+1,column=0)
 
-    def start_tournament(self):
-        pass
+    def get_tournament(self) -> tournament.Tournament:
+        name = self.name_entry.get_entry()
+        players = list[str]()
+        for entry in self.player_entries:
+            players.append(entry.get_entry())
+        
+        t_type = tournament.Tournament.TYPE[self.type_selector.get_selected()]
+        seeding = tournament.Tournament.SEEDING[self.seed_selector.get_selected()]
+        reseeding = self.reseed_selector.get_selected() == 'round reseeding'
+        return tournament.Tournament(name, players, t_type, seeding, reseeding)
     
     def add_player_slot(self):
         num_players = len(self.player_entries)
@@ -1327,10 +1439,13 @@ class ViewSkeleton(View):
         super().__init__(frm)
 
     def attach(self, stats:sc.StatCollector, dates:list[event_date.EventDate], filter:gamefilter.GameFilter) -> None:
-        pass
+        if not self.attached:
+            self.attached = True
+            self.stats = stats
 
     def detach(self) -> None:
-        pass
+        self.attached = False
+        self.stats = None
 
     def reset(self) -> None:
         pass
