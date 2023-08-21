@@ -354,7 +354,7 @@ UI to adjust a value with an optional min/max
 """
 class ValueAdjustor(ttk.Frame):
     
-    def __init__(self, frm:ttk.Frame, name:str, cur_val:float=0, min_val:Union[float,None]=None, max_val:Union[float,None]=None, step:float=1) -> None:
+    def __init__(self, frm:ttk.Frame, name:str, cur_val:float=0, min_val:Union[float,None]=None, max_val:Union[float,None]=None, step:float=1, apply_btn=False) -> None:
         super().__init__(frm, borderwidth=2, relief='raised')
 
         assert ((min_val is not None and min_val <= cur_val) or min_val is None) and ((max_val is not None and cur_val <= max_val) or max_val is None)
@@ -365,6 +365,7 @@ class ValueAdjustor(ttk.Frame):
         self.max_val = max_val
         self.min_val = min_val
         self.step = step
+        self.apply_btn = apply_btn
 
         self.listeners = []
 
@@ -375,6 +376,9 @@ class ValueAdjustor(ttk.Frame):
         self.val_lbl = ttk.Label(self,text=self.value,anchor='c')
         self.val_lbl.grid(row=r,column=1,sticky='news')
         ttk.Button(self,text='+',command=self.increase).grid(row=r,column=2)#,sticky='news')
+        r+=1
+        if self.apply_btn:
+            ttk.Button(self,text='Apply',command=self.notify_listeners).grid(row=r,column=0,columnspan=3)
 
     """
     Adds a listener that will be notified when value is changed
@@ -390,6 +394,10 @@ class ValueAdjustor(ttk.Frame):
         if type(self.value) == float:
             text = f'{self.value:.3f}'
         self.val_lbl.config(text=text)
+        if not self.apply_btn:
+            self.notify_listeners()
+
+    def notify_listeners(self):
         for listener in self.listeners:
             listener.update_value(self.name, self.value)
 
@@ -681,6 +689,12 @@ class PerformanceView(ttk.Frame):
         self.other_lbls = list[ttk.Label]()
         self.update_labels()
 
+    def set_n(self, n:int):
+        if n >= 1:
+            self.n = n
+            self.clear_lbls()
+            self.update_labels()
+
     def clear_lbls(self):
         for lbl in self.num_lbls:
             lbl.destroy()
@@ -753,20 +767,27 @@ class PerformanceView(ttk.Frame):
 
 class PerformanceGroup(ttk.Frame):
 
-    def __init__(self, frm:ttk.Frame, name:str, groups:list[tuple[str,list[records.Performance]]]):
+    def __init__(self, frm:ttk.Frame, name:str, groups:list[tuple[str,list[records.Performance]]], n_best:int=3):
         super().__init__(frm, borderwidth=2, relief='groove')
 
         ttk.Label(self, text=name).grid(row=0,column=0,columnspan=len(groups),sticky='news')
 
+        self.n = n_best
         c = 0
         self.performances = dict[str,PerformanceView]()
         for name,performances in groups:
-            self.performances[name] = PerformanceView(self, name,3, performances)
+            self.performances[name] = PerformanceView(self, name, self.n, performances)
             self.performances[name].grid(row=1,column=c,sticky='news')
             c += 1
 
     def set_performances(self, name:str, performances:records.Performance):
         self.performances[name].set_performances(performances)
+
+    def set_n(self, n:int):
+        if n >= 1:
+            self.n = n
+            for list in self.performances.values():
+                list.set_n(n)
 
 class ScrollFrame(ttk.Frame):
     def __init__(self, parent):

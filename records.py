@@ -129,9 +129,9 @@ class Records:
                     l_goals = stats.groupby(['Loser',  time_frame.selector()])['Loser Score'].sum().reset_index()
                     w_goals = w_goals.rename(columns={'Winner':'Name'})
                     l_goals = l_goals.rename(columns={'Loser':'Name'})
-                    goals = w_goals.join(l_goals.set_index(['Name',time_frame.selector()]), ['Name',time_frame.selector()])
+                    goals = w_goals.join(l_goals.set_index(['Name',time_frame.selector()]), ['Name',time_frame.selector()], 'outer')
                     goals = goals.fillna(0)
-                    goals = goals.astype({'Loser Score':int})
+                    goals = goals.astype({'Loser Score':int,'Winner Score':int})
                     goals[self.categories[category]] = goals['Winner Score']+goals['Loser Score']
                     best = goals.nlargest(n,self.categories[category],'all')
                     performances = []
@@ -146,9 +146,9 @@ class Records:
                     losses = stats.groupby(['Loser', time_frame.selector()]).size().reset_index(name='losses')
                     wins =   wins.rename(columns={'Winner':'Name'})
                     losses = losses.rename(columns={'Loser':'Name'})
-                    games = wins.join(losses.set_index(['Name',time_frame.selector()]), ['Name',time_frame.selector()])
+                    games = wins.join(losses.set_index(['Name',time_frame.selector()]), ['Name',time_frame.selector()], 'outer')
                     games = games.fillna(0)
-                    games = games.astype({'losses':int})
+                    games = games.astype({'losses':int, 'wins':int})
                     games[self.categories[category]] = games['wins']+games['losses']
                     best = games.nlargest(n,self.categories[category],'all')
                     performances = []

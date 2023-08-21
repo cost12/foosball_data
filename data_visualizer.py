@@ -1167,6 +1167,15 @@ class RecordsView(View):
 
         self.records = records.Records()
 
+        self.n_select = ValueAdjustor(self,"Select n", 3, 1, None, apply_btn=True)
+        self.n_select.add_listener(self)
+        self.n_select.grid(row=0,column=0,sticky='news')
+        self.n = self.n_select.value
+
+        self.scroll = ValueAdjustor(self, "Scroll", 0, 0, None)
+        self.scroll.add_listener(self)
+        self.scroll.grid(row=0,column=1,sticky='news')
+
         self.record_list = list[tuple[str,str]]()
         for category in self.records.get_categories():
             self.record_list.append((category, []))
@@ -1174,11 +1183,11 @@ class RecordsView(View):
         self.groups = dict[records.TimeFrame,PerformanceGroup]()
         i = 0
         for time_frame in self.records.get_time_frames():
-            self.groups[time_frame] = PerformanceGroup(self, time_frame.get_string().upper(), self.record_list)
+            self.groups[time_frame] = PerformanceGroup(self, time_frame.get_string().upper(), self.record_list, self.n)
             if i == 0:
-                self.groups[time_frame].grid(row=i//2,column=i%2,columnspan=2,sticky='news')
+                self.groups[time_frame].grid(row=i//2+1,column=i%2,columnspan=2,sticky='news')
             else:
-                self.groups[time_frame].grid(row=(i-1)//2+1,column=(i+1)%2,sticky='news')
+                self.groups[time_frame].grid(row=(i-1)//2+2,column=(i+1)%2,sticky='news')
             i += 1
 
     def attach(self, stats:sc.StatCollector, dates:list[event_date.EventDate], filter) -> None:
@@ -1191,11 +1200,11 @@ class RecordsView(View):
             i = len(self.groups)
             for time_frame in self.records.get_time_frames():
                 if time_frame not in self.groups:
-                    self.groups[time_frame] = PerformanceGroup(self, time_frame.get_string().upper(), self.record_list)
+                    self.groups[time_frame] = PerformanceGroup(self, time_frame.get_string().upper(), self.record_list, self.n)
                     if i == 0:
-                        self.groups[time_frame].grid(row=0,column=0,columnspan=2,sticky='news')
+                        self.groups[time_frame].grid(row=1,column=0,columnspan=2,sticky='news')
                     else:
-                        self.groups[time_frame].grid(row=(i-1)//2+1,column=(i+1)%2,sticky='news')
+                        self.groups[time_frame].grid(row=(i-1)//2+2,column=(i+1)%2,sticky='news')
                     i += 1
 
             self.update_labels()
@@ -1209,13 +1218,41 @@ class RecordsView(View):
             group.destroy()
         self.groups.clear()
 
+    def update_value(self, name, value):
+        if name == "Select n":
+            for group in self.groups.values():
+                group.set_n(value)
+            self.n = value
+            self.update_labels()
+        elif name == 'Scroll':
+            self.regrid()
+
+    def regrid(self):
+        scroll = self.scroll.value
+        if scroll > 1:
+            scroll = 2*scroll - 1
+        i = 0
+        for time_frame in self.records.get_time_frames():
+            place = i - scroll
+            if place < 0:
+                pass
+            elif place == 0 and i == 0:
+                self.groups[time_frame].grid(row=1,column=0,columnspan=2,sticky='news')
+            elif place == 0:
+                self.groups[time_frame].grid(row=1,column=0,sticky='news')
+            elif scroll == 0:
+                self.groups[time_frame].grid(row=(place-1)//2+2,column=(place+1)%2,sticky='news')
+            else:
+                self.groups[time_frame].grid(row=place//2+1,column=place%2,sticky='news')
+            i += 1
+
     def reset(self) -> None:
         pass
     
     def update_labels(self) -> None:
         for time_frame in self.groups.keys():
             for category in self.records.get_categories():
-                best = self.records.get_top_performances(category,time_frame,3)
+                best = self.records.get_top_performances(category,time_frame,self.n)
                 self.groups[time_frame].set_performances(category, best)
 
 
