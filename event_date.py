@@ -15,7 +15,7 @@ class EventDate:
     
 
 
-def get_event(date:datetime.date, events):
+def get_event(date:datetime.date, events:list[EventDate]) -> EventDate:
     for event in events:
         if event.contains_date(date):
             return event

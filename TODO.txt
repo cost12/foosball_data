@@ -37,9 +37,7 @@ Dataset Features:
 2. Don't allow clicks while stuff is loading
 
 Record Features:
-1. Need to be able to pass semesters in
-2. Records for all time frames/ filtered/ by day instead of all time
-3. All time records (needed?)
+1. Collective/Group records
 
 Needs Testing:
 

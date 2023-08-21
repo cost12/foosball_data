@@ -43,11 +43,8 @@ def visualize_foosball() -> None:
         return
 
     root = tk.Tk()
-    #root.rowconfigure(0,weight=1)
-    #root.columnconfigure(0,weight=1)
 
     s = ttk.Style()
-    #s.configure(root, font=('Tahoma', 11)) # Calibri
 
     viewControl = StatsViewControl(root,games_options,dates_options)
 
@@ -59,7 +56,7 @@ Super class for all views/screens
 class View(ttk.Frame):
 
     def __init__(self, frm:ttk.Frame, *, __s:sc.StatCollector=None, __d:list[utils.SheetIdentifier]=None, __f:gamefilter.GameFilter=None):
-        super().__init__(frm)
+        super().__init__(frm, borderwidth=2, relief='groove')
         
         self.frm = frm
         self.attached = False
@@ -117,6 +114,9 @@ class StatsViewControl(ttk.Frame):
         super().__init__(frm)
         self.frm=frm
 
+        if c.DEBUG_MODE:
+            ttk.Button(frm,text='repack',command=self.repack).pack()
+
         start_screen = str('dataset')
 
         self.stats = sc.StatCollector([])
@@ -155,7 +155,7 @@ class StatsViewControl(ttk.Frame):
         for view in self.views:
             if not view == start_screen:
                 self.views[view].forget()
-        self.views[start_screen].attach(self.stats, self.dates, self.filter)
+        self.views[start_screen].attach(self.stats, self.dates, self.filter)  
 
     """
     Called by the buttons to change the screen
@@ -183,6 +183,9 @@ class StatsViewControl(ttk.Frame):
             self.view = view
             self.views[self.view].attach(self.stats, self.dates, self.filter)
             self.views[self.view].pack(fill='y',expand=True,side='top')
+
+    def repack(self):
+        self.views[self.view].pack(fill='both',expand=True,side='top')
 
 """
 Select which datasets will be loaded and used
@@ -1164,15 +1167,18 @@ class RecordsView(View):
 
         self.records = records.Records()
 
-        record_list = list[tuple[str,str]]()
+        self.record_list = list[tuple[str,str]]()
         for category in self.records.get_categories():
-            record_list.append((category, "None"))
+            self.record_list.append((category, []))
 
-        self.groups = dict[str,LabelGroup]()
+        self.groups = dict[records.TimeFrame,PerformanceGroup]()
         i = 0
         for time_frame in self.records.get_time_frames():
-            self.groups[time_frame] = LabelGroup(self, time_frame.upper(), record_list)
-            self.groups[time_frame].grid(row=i//2,column=i%2,sticky='news')
+            self.groups[time_frame] = PerformanceGroup(self, time_frame.get_string().upper(), self.record_list)
+            if i == 0:
+                self.groups[time_frame].grid(row=i//2,column=i%2,columnspan=2,sticky='news')
+            else:
+                self.groups[time_frame].grid(row=(i-1)//2+1,column=(i+1)%2,sticky='news')
             i += 1
 
     def attach(self, stats:sc.StatCollector, dates:list[event_date.EventDate], filter) -> None:
@@ -1181,6 +1187,17 @@ class RecordsView(View):
             self.dates = dates
             self.attached = True
             self.records.attach(self.stats, self.dates) # TODO: only pass in semesters?
+
+            i = len(self.groups)
+            for time_frame in self.records.get_time_frames():
+                if time_frame not in self.groups:
+                    self.groups[time_frame] = PerformanceGroup(self, time_frame.get_string().upper(), self.record_list)
+                    if i == 0:
+                        self.groups[time_frame].grid(row=0,column=0,columnspan=2,sticky='news')
+                    else:
+                        self.groups[time_frame].grid(row=(i-1)//2+1,column=(i+1)%2,sticky='news')
+                    i += 1
+
             self.update_labels()
 
     def detach(self) -> None:
@@ -1188,25 +1205,19 @@ class RecordsView(View):
         self.dates = None
         self.attached = False
         self.records.detach()
+        for group in self.groups.values():
+            group.destroy()
+        self.groups.clear()
 
     def reset(self) -> None:
         pass
     
-    # TODO: this -> need to fill out the records class first though
     def update_labels(self) -> None:
         for time_frame in self.groups.keys():
             for category in self.records.get_categories():
-                record = self.records.get_record(category,time_frame)
-                record_str = ""
-                for player in record[1]:
-                    if 'day' in time_frame:
-                        record_str += f'{record[0]} {player[0]} ({player[1].strftime("%b %#d, %y")})\n'
-                    elif 'semester' in time_frame:
-                        record_str += f'{record[0]} {player[0]} ({player[1]})\n'
-                    else:
-                        record_str += f'{record[0]} {player}\n'
-                record_str = record_str[:-1]
-                self.groups[time_frame].set_value(category, record_str)
+                best = self.records.get_top_performances(category,time_frame,3)
+                self.groups[time_frame].set_performances(category, best)
+
 
 class TournamentView(View):
 

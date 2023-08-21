@@ -1,10 +1,14 @@
 import tkinter as tk
 from tkinter import ttk
+from tkinter.constants import *
+import platform
+
 from typing import Union
 
 import constants as c
 import foosballgame
 import tournament
+import records
 
 """ TODO: should duplicates be allowed? right now they are
 Select values from a list of values
@@ -657,3 +661,167 @@ class BracketView(ttk.Frame):
 
     def update_labels(self) -> None:
         pass
+
+class PerformanceView(ttk.Frame):
+
+    def __init__(self, frm:ttk.Frame, name:str, n_best:int=3, performances:list[records.Performance]=None):
+        super().__init__(frm, borderwidth=2, relief='groove')
+        
+        ttk.Label(self,text=name).grid(row=0,column=0,columnspan=4,sticky='news')
+
+        self.name = name
+        self.n = n_best
+
+        if performances is None:
+            self.performances = list[records.Performance]()
+        else:
+            self.performances = performances
+
+        self.num_lbls = list[ttk.Label]()
+        self.other_lbls = list[ttk.Label]()
+        self.update_labels()
+
+    def clear_lbls(self):
+        for lbl in self.num_lbls:
+            lbl.destroy()
+        for lbl in self.other_lbls:
+            lbl.destroy()
+        self.num_lbls.clear()
+        self.other_lbls.clear()
+
+    def clear(self):
+        self.performances.clear()
+        self.clear_lbls()
+
+    def update_labels(self):
+        self.performances.sort(key=lambda x: x.result, reverse=True)
+        place = 1
+        tied = 0
+        i = 0
+        for performance in self.performances:
+            if i > 0 and performance.result < self.performances[i-1].result:
+                place += tied + 1
+                tied = 0
+                if place > self.n:
+                    return
+            elif i > 0 and performance.result == self.performances[i-1].result:
+                tied += 1
+            num = ttk.Label(self,text=place)#, borderwidth=2, relief='sunken')
+            num.grid(row=i+1,column=0,sticky='news')
+            self.num_lbls.append(num)
+
+            name = ttk.Label(self,text=performance.player, borderwidth=2, relief='sunken')
+            name.grid(row=i+1,column=1,sticky='news')
+            self.other_lbls.append(name)
+
+            result = ttk.Label(self,text=performance.result, borderwidth=2, relief='sunken')
+            result.grid(row=i+1,column=2,sticky='news')
+            self.other_lbls.append(result)
+
+            #print(type(performance.on_date))
+            if type(performance.on_date) == str:
+                date_txt = performance.on_date
+            elif performance.is_across_dates():
+                from_date_txt = performance.on_date.strftime("%b %#d, %y")
+                to_date_txt =   performance.to_date.strftime("%b %#d, %y")
+                date_txt = f'{from_date_txt}-{to_date_txt}'
+            elif performance.has_date():
+                date_txt = performance.on_date.strftime("%b %#d, %y")
+            elif performance.has_semester():
+                date_txt = performance.semester
+            else:
+                date_txt = ''
+            date = ttk.Label(self, text=date_txt, borderwidth=2, relief='sunken')
+            date.grid(row=i+1,column=3,sticky='news')
+            self.other_lbls.append(date)
+
+            i += 1
+
+    def add_performance(self, performance:records.Performance):
+        self.performances.append(performance)
+        self.clear_lbls()
+        self.update_labels()
+
+    def add_performances(self, performances:list[records.Performance]):
+        self.performances.extend(performances)
+        self.clear_lbls()
+        self.update_labels()
+
+    def set_performances(self, performances:list[records.Performance]):
+        self.clear()
+        self.add_performances(performances)
+
+class PerformanceGroup(ttk.Frame):
+
+    def __init__(self, frm:ttk.Frame, name:str, groups:list[tuple[str,list[records.Performance]]]):
+        super().__init__(frm, borderwidth=2, relief='groove')
+
+        ttk.Label(self, text=name).grid(row=0,column=0,columnspan=len(groups),sticky='news')
+
+        c = 0
+        self.performances = dict[str,PerformanceView]()
+        for name,performances in groups:
+            self.performances[name] = PerformanceView(self, name,3, performances)
+            self.performances[name].grid(row=1,column=c,sticky='news')
+            c += 1
+
+    def set_performances(self, name:str, performances:records.Performance):
+        self.performances[name].set_performances(performances)
+
+class ScrollFrame(ttk.Frame):
+    def __init__(self, parent):
+        super().__init__(parent, borderwidth=2, relief='groove') # create a frame (self)
+
+        self.canvas = tk.Canvas(self, borderwidth=0, background="#ffffff")          #place canvas on self
+        self.viewPort = ttk.Frame(self.canvas)                                      #place a frame on the canvas, this frame will hold the child widgets 
+        self.vsb = ttk.Scrollbar(self, orient="vertical", command=self.canvas.yview) #place a scrollbar on self 
+        self.canvas.configure(yscrollcommand=self.vsb.set)                          #attach scrollbar action to scroll of canvas
+
+        self.vsb.pack(side="right", fill="y",expand=False)                                       #pack scrollbar to right of self
+        self.canvas.pack(side="left", fill="both", expand=True)                     #pack canvas to left of self and expand to fil
+        self.canvas_window = self.canvas.create_window((4,4), window=self.viewPort, anchor="nw",            #add view port frame to canvas
+                                  tags="self.viewPort")
+
+        self.viewPort.bind("<Configure>", self.onFrameConfigure)                       #bind an event whenever the size of the viewPort frame changes.
+        self.canvas.bind("<Configure>", self.onCanvasConfigure)                       #bind an event whenever the size of the canvas frame changes.
+            
+        self.viewPort.bind('<Enter>', self.onEnter)                                 # bind wheel events when the cursor enters the control
+        self.viewPort.bind('<Leave>', self.onLeave)                                 # unbind wheel events when the cursorl leaves the control
+
+        self.onFrameConfigure(None)                                                 #perform an initial stretch on render, otherwise the scroll region has a tiny border until the first resize
+
+    def onFrameConfigure(self, event):                                              
+        '''Reset the scroll region to encompass the inner frame'''
+        print('hello')
+        self.canvas.configure(scrollregion=self.canvas.bbox("all"))                 #whenever the size of the frame changes, alter the scroll region respectively.
+
+    def onCanvasConfigure(self, event):
+        '''Reset the canvas window to encompass inner frame when required'''
+        print('hi')
+        canvas_width = event.width
+        self.canvas.itemconfig(self.canvas_window, width = canvas_width)            #whenever the size of the canvas changes alter the window region respectively.
+
+    def onMouseWheel(self, event):                                                  # cross platform scroll wheel event
+        if platform.system() == 'Windows':
+            self.canvas.yview_scroll(int(-1* (event.delta/120)), "units")
+        elif platform.system() == 'Darwin':
+            self.canvas.yview_scroll(int(-1 * event.delta), "units")
+        else:
+            if event.num == 4:
+                self.canvas.yview_scroll( -1, "units" )
+            elif event.num == 5:
+                self.canvas.yview_scroll( 1, "units" )
+    
+    def onEnter(self, event):                                                       # bind wheel events when the cursor enters the control
+        if platform.system() == 'Linux':
+            self.canvas.bind_all("<Button-4>", self.onMouseWheel)
+            self.canvas.bind_all("<Button-5>", self.onMouseWheel)
+        else:
+            self.canvas.bind_all("<MouseWheel>", self.onMouseWheel)
+
+    def onLeave(self, event):                                                       # unbind wheel events when the cursorl leaves the control
+        if platform.system() == 'Linux':
+            self.canvas.unbind_all("<Button-4>")
+            self.canvas.unbind_all("<Button-5>")
+        else:
+            self.canvas.unbind_all("<MouseWheel>")
