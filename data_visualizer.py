@@ -1039,15 +1039,15 @@ class GraphView(View):
         self.players_to_show.add_listener(self)
         self.players_to_show.grid(row=0,column=0,sticky='news',rowspan=3)
 
-        self.x_choice = SingleSelector(self,"x axis",self.supported_xs)
+        self.x_choice = SingleSelector(self,"x axis",self.supported_xs, selected='date')
         self.x_choice.add_listener(self)
         self.x_choice.grid(row=0,column=1,sticky='news')
 
-        self.y_choice = SingleSelector(self,"y axis",self.supported_ys)
+        self.y_choice = SingleSelector(self,"y axis",self.supported_ys, selected='wins')
         self.y_choice.add_listener(self)
         self.y_choice.grid(row=1,column=1,sticky='news')
 
-        self.alpha_val = ValueAdjustor(self,'alpha',0.5,0,1,0.05)
+        self.alpha_val = ValueAdjustor(self,'alpha',0.1,0,1,0.05)
         self.alpha_val.add_listener(self)
         self.alpha_val.grid(row=2,column=1,sticky='news')
 
