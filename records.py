@@ -209,30 +209,35 @@ class Records:
                 cur_time = time
                 counts[winner] = Performance('win streak',time_frame,winner,1,on_date=date,to_date=date)
             else:
-                for name in counts.keys():
-                    if counts[name].result == cutoff:
-                        performances.append(counts[name])
-                    elif counts[name].result > cutoff:
-                        places = 0
-                        tied = 0
-                        i = 0
-                        performances.sort(key=lambda x: x.result, reverse=True)
-                        for performance in performances:
-                            if performance.result < cutoff:
-                                performances.remove(performance)
-                            if i > 0 and performance.result < performances[i-1].result:
-                                places += tied + 1
-                                tied = 0
-                                if places > n:
-                                    cutoff = performances[i-1].result
-                            elif i > 0 and performance.result == performances[i-1].result:
-                                tied += 1
-                            i+=1
-                        performances.append(counts[name])
+                cutoff = self.__update_performances(performances,counts,n,cutoff)
                 cur_time = time
-                counts.clear()
                 counts[winner] = Performance('win streak',time_frame,winner,1,on_date=date,to_date=date)
+        self.__update_performances(performances,counts,n,cutoff)
         return performances
+    
+    def __update_performances(self, performances:list[Performance], counts:dict[str,Performance], n:int, cutoff:int) -> int:
+        for name in counts.keys():
+            if counts[name].result == cutoff:
+                performances.append(counts[name])
+            elif counts[name].result > cutoff:
+                places = 0
+                tied = 0
+                i = 0
+                performances.sort(key=lambda x: x.result, reverse=True)
+                for performance in performances:
+                    if performance.result < cutoff:
+                        performances.remove(performance)
+                    if i > 0 and performance.result < performances[i-1].result:
+                        places += tied + 1
+                        tied = 0
+                        if places > n:
+                            cutoff = performances[i-1].result
+                    elif i > 0 and performance.result == performances[i-1].result:
+                        tied += 1
+                    i+=1
+                performances.append(counts[name])
+        counts.clear()
+        return cutoff
 
     def attach(self, stats:sc.StatCollector, semesters:list[event_date.EventDate]):
         if not self.attached:

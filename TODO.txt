@@ -6,17 +6,17 @@ TODO: (6 done)
 
 Bugs: (8 fixed)
 1. Sort takes 2 clicks to work sometimes
-2. Filter doesn't keep winners/losers selected when changing screens
-3. Force Dates to be selected before leaving DataSelector, allow travel to DataSelector, Filter when none selected
+2. View sim probabilities for numbers > 13
 
 Features to Add:
 1. Leagues - standings, schedule, scores
 2. Individual Overview
 3. Info
-4. Records
-5. Tournaments
-6. Error checking/ validation for all datasets
-7. Move to SQL database? Move to local csvs as main?
+4. Tournaments
+5. Error checking/ validation for all datasets
+6. Move to SQL database? Move to local csvs as main?
+7. Entry style inputs for ints/floats
+8. StatCollector should have listeners
 
 Table Features:
 1. Choose how many rows appear in table
@@ -24,9 +24,8 @@ Table Features:
 
 Sim Features:
 1. Be able to input games to sheets
-2. Be able to see all score probabilities even when games are to high numbers
-3. Be able to choose win by 2/1
-4. Use FoosballMatchup
+2. Be able to choose win by 2/1
+3. Use FoosballMatchup
 
 Filter Features:
 1. Make it easier to select Number/ not just +/- 1

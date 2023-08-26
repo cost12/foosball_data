@@ -89,6 +89,7 @@ class MultiSelector(ttk.Frame):
     def select(self, option:str, like_click:bool=True) -> bool:
         if option in self.options:
             self.check_btns[self.options.index(option)].state(['selected'])
+            self.selected[self.options.index(option)].set(1)
             if not self.apply_btn and like_click:
                 self.value_update()
             return True
@@ -98,6 +99,7 @@ class MultiSelector(ttk.Frame):
         if option in self.options:
             if self.selected[self.options.index(option)]:
                 self.check_btns[self.options.index(option)].state(['!selected'])
+                self.selected[self.options.index(option)].set(0)
             if not self.apply_btn and like_click:
                 self.value_update()
             return True
@@ -128,8 +130,7 @@ class MultiSelector(ttk.Frame):
                 print("Error: Multiselector.add_option not implemented for sorted selections")
         else:
             self.options.append(option)
-            self.selected.append(tk.IntVar())
-            self.selected[-1].set(1)
+            self.selected.append(tk.IntVar(value=0))
             if self.apply_btn:
                 self.check_btns.append(ttk.Checkbutton(self, text=option, variable=self.selected[-1], onvalue=1, offvalue=0))
             else:
@@ -137,6 +138,7 @@ class MultiSelector(ttk.Frame):
             self.check_btns[-1].state(['!alternate'])
             if select:
                 self.check_btns[-1].state(['selected'])
+                self.selected[-1].set(1)
             self.check_btns[-1].grid(row=len(self.options),column=0,sticky='news')
 
     def add_options(self, options:list[str]) -> None:
@@ -154,13 +156,13 @@ class MultiSelector(ttk.Frame):
             self.options.sort()
         for option in self.options:
             self.selected.append(tk.IntVar())
-            self.selected[-1].set(1)
             if self.apply_btn:
                 self.check_btns.append(ttk.Checkbutton(self, text=option, variable=self.selected[-1], onvalue=1, offvalue=0))
             else:
                 self.check_btns.append(ttk.Checkbutton(self, text=option, variable=self.selected[-1], onvalue=1, offvalue=0, command=self.value_update))
             self.check_btns[-1].state(['!alternate'])
             self.check_btns[-1].state(['selected'])
+            self.selected[-1].set(1)
             self.check_btns[-1].grid(row=r,column=0,sticky='news')
             r += 1
 
@@ -389,12 +391,12 @@ class ValueAdjustor(ttk.Frame):
     """
     Updates lables to show current values
     """
-    def update_labels(self) -> None:
+    def update_labels(self, as_click:bool=True) -> None:
         text = self.value
         if type(self.value) == float:
             text = f'{self.value:.3f}'
         self.val_lbl.config(text=text)
-        if not self.apply_btn:
+        if not self.apply_btn and as_click:
             self.notify_listeners()
 
     def notify_listeners(self):
@@ -404,48 +406,48 @@ class ValueAdjustor(ttk.Frame):
     """
     If it's within range, decreases the value and updates the label
     """
-    def decrease(self) -> None:
+    def decrease(self, as_click:bool=True) -> None:
         if self.min_val is None or self.value > self.min_val:
             self.value = max(self.value - self.step, self.min_val)
-            self.update_labels()
+            self.update_labels(as_click)
 
     """
     If it's within range, increases the value and updates the label
     """
-    def increase(self) -> None:
+    def increase(self, as_click:bool=True) -> None:
         if self.max_val is None:
             self.value = self.value + self.step
-            self.update_labels()
+            self.update_labels(as_click)
         elif self.value < self.max_val:
             self.value = min(self.value + self.step, self.max_val)
-            self.update_labels()
+            self.update_labels(as_click)
 
-    def set_value(self, value) -> None:
+    def set_value(self, value, as_click:bool=True) -> None:
         if (self.max_val is None or value <= self.max_val) and (self.min_val is None or self.min_val <= value):
             self.value = value
-            self.update_labels()
+            self.update_labels(as_click)
 
     """
     Sets the min value to a new value and updates the current value as necessary
     """
-    def set_min(self, new_min:Union[int,None]) -> None:
+    def set_min(self, new_min:Union[int,None], as_click:bool=True) -> None:
         self.min_val = new_min
         if self.min_val is not None and self.max_val is not None and self.min_val > self.max_val:
             self.max_val = self.min_val
         if self.min_val is not None and self.min_val > self.value:
             self.value = self.min_val
-            self.update_labels()
+            self.update_labels(as_click)
 
     """
     Sets the max value to a new value and updates the current value as necessary
     """
-    def set_max(self, new_max:Union[int,None]) -> None:
+    def set_max(self, new_max:Union[int,None], as_click=True) -> None:
         self.max_val = new_max
         if self.min_val is not None and self.max_val is not None and self.max_val < self.min_val:
             self.min_val = self.max_val
         if self.max_val is not None and self.max_val < self.value:
             self.value = self.max_val
-            self.update_labels()
+            self.update_labels(as_click)
 
 """
 Displays a label and a value

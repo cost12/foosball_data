@@ -1194,6 +1194,7 @@ class RecordsView(View):
         if not self.attached:
             self.stats = stats
             self.dates = dates
+            self.scroll.set_value(0,as_click=False)
             self.attached = True
             self.records.attach(self.stats, self.dates) # TODO: only pass in semesters?
 
