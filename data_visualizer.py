@@ -391,11 +391,11 @@ class SimView(View):
 
         r += 1
         # row 2
-        self.score_num1 = ttk.Label(self, text=self.simulator.sim_score1,anchor='e')
+        self.score_num1 = ttk.Label(self, text=self.simulator.p1_score(),anchor='e')
         self.score_num1.grid(row=r,column=0,sticky='news')
         self.sim_game_btn = ttk.Button(self, text='Sim Game', command=self.sim_game)
         self.sim_game_btn.grid(row=r, column=1,sticky='news')
-        self.score_num2 = ttk.Label(self, text=self.simulator.sim_score2)
+        self.score_num2 = ttk.Label(self, text=self.simulator.p2_score())
         self.score_num2.grid(row=r,column=2,sticky='news')
 
         r += 1
@@ -448,9 +448,9 @@ class SimView(View):
 
         r += 1
         # row 9
-        self.add_goal_btn1 = ttk.Button(self, text='Add Goal', command=lambda : self.add_goal(self.simulator.player1))
+        self.add_goal_btn1 = ttk.Button(self, text='Add Goal', command=lambda : self.add_goal(self.simulator.p1()))
         self.add_goal_btn1.grid(row=r,column=0,sticky='news')
-        self.add_goal_btn2 = ttk.Button(self, text='Add Goal', command=lambda : self.add_goal(self.simulator.player2))
+        self.add_goal_btn2 = ttk.Button(self, text='Add Goal', command=lambda : self.add_goal(self.simulator.p2()))
         self.add_goal_btn2.grid(row=r,column=2,sticky='news')
 
         r += 1
@@ -525,8 +525,10 @@ class SimView(View):
                 self.is_skill = True
             self.reset()
         elif name == 'Goals to Win':
-            self.simulator.set_game_to(value)
-            self.update_labels()
+            if self.simulator.set_game_to(value):
+                self.update_labels()
+            else:
+                self.goal_points.set_value(self.simulator.game_to(),False)
 
     """
     Simulate a goal
@@ -553,40 +555,40 @@ class SimView(View):
     Updates the labels with new information from the simulation
     """
     def update_labels(self) -> None:
-        self.score_num1.config(text=self.simulator.sim_score1)
-        self.score_num2.config(text=self.simulator.sim_score2)
+        self.score_num1.config(text=self.simulator.p1_score())
+        self.score_num2.config(text=self.simulator.p2_score())
         text = '{:>.3f}%'.format(self.simulator.get_p1_win_odds()*100)
         self.win_prob_num1.config(text=text)
         text = '{:>.3f}%'.format((1-self.simulator.get_p1_win_odds())*100)
         self.win_prob_num2.config(text=text)
-        text = '{:>.3f}'.format(self.simulator.get_expected_score(self.simulator.player1))
+        text = '{:>.3f}'.format(self.simulator.get_expected_score(self.simulator.p1()))
         self.exp_score_num1.config(text=text)
-        text = '{:>.3f}'.format(self.simulator.get_expected_score(self.simulator.player2))
+        text = '{:>.3f}'.format(self.simulator.get_expected_score(self.simulator.p2()))
         self.exp_score_num2.config(text=text)
-        self.prob_score_num1.config(text=self.simulator.get_most_probable_score(self.simulator.player1))
-        self.prob_score_num2.config(text=self.simulator.get_most_probable_score(self.simulator.player2))
+        self.prob_score_num1.config(text=self.simulator.get_most_probable_score(self.simulator.p1()))
+        self.prob_score_num2.config(text=self.simulator.get_most_probable_score(self.simulator.p2()))
 
-        self.wins_lbl1.config(text=self.simulator.get_wins_for(self.simulator.player1))
-        self.wins_lbl2.config(text=self.simulator.get_wins_for(self.simulator.player2))
-        self.goals_lbl1.config(text=self.simulator.get_goals_for(self.simulator.player1))
-        self.goals_lbl2.config(text=self.simulator.get_goals_for(self.simulator.player2))
+        self.wins_lbl1.config(text=self.simulator.get_wins_for(self.simulator.p1()))
+        self.wins_lbl2.config(text=self.simulator.get_wins_for(self.simulator.p2()))
+        self.goals_lbl1.config(text=self.simulator.get_goals_for(self.simulator.p1()))
+        self.goals_lbl2.config(text=self.simulator.get_goals_for(self.simulator.p2()))
 
         if self.show_probs:
-            rows_used = self.simulator.game_to+1
+            rows_used = self.simulator.game_to()+1
             for i in range(0,rows_used):
                 if i < len(self.score_lbls_num):
-                    text = '{:>.3f}'.format(self.simulator.get_prob_of_score(self.simulator.player1,i)*100)
+                    text = '{:>.3f}'.format(self.simulator.get_prob_of_score(self.simulator.p1(),i)*100)
                     self.score_lbls_p1[i].config(text=text)
-                    text = '{:>.3f}'.format(self.simulator.get_prob_of_score(self.simulator.player2,i)*100)
+                    text = '{:>.3f}'.format(self.simulator.get_prob_of_score(self.simulator.p2(),i)*100)
                     self.score_lbls_p2[i].config(text=text)
                 else:
                     r = self.row_count+i+1
-                    text = '{:>.3f}'.format(self.simulator.get_prob_of_score(self.simulator.player1,i)*100)
+                    text = '{:>.3f}'.format(self.simulator.get_prob_of_score(self.simulator.p1(),i)*100)
                     p1_lbl = ttk.Label(self, text=text, anchor='e')
                     p1_lbl.grid(row=r,column=0,sticky='news')
                     num_lbl = ttk.Label(self,text=i,anchor='c')
                     num_lbl.grid(row=r,column=1,sticky='news')
-                    text = '{:>.3f}'.format(self.simulator.get_prob_of_score(self.simulator.player2,i)*100)
+                    text = '{:>.3f}'.format(self.simulator.get_prob_of_score(self.simulator.p2(),i)*100)
                     p2_lbl = ttk.Label(self, text=text, anchor='w')
                     p2_lbl.grid(row=r,column=2,sticky='news')
 
@@ -597,15 +599,15 @@ class SimView(View):
             rows_used = 10 + 1
             for i in range(0,rows_used):
                 if i < len(self.score_lbls_num):
-                    self.score_lbls_p1[i].config(text=self.simulator.get_times_scored_n(self.simulator.player1,i))
-                    self.score_lbls_p2[i].config(text=self.simulator.get_times_scored_n(self.simulator.player2,i))
+                    self.score_lbls_p1[i].config(text=self.simulator.get_times_scored_n(self.simulator.p1(),i))
+                    self.score_lbls_p2[i].config(text=self.simulator.get_times_scored_n(self.simulator.p2(),i))
                 else:
                     r = self.row_count+i
-                    p1_lbl = ttk.Label(self, text=self.simulator.get_times_scored_n(self.simulator.player1,i), anchor='e')
+                    p1_lbl = ttk.Label(self, text=self.simulator.get_times_scored_n(self.simulator.p1(),i), anchor='e')
                     p1_lbl.grid(row=r,column=0,sticky='news')
                     num_lbl = ttk.Label(self,text=i,anchor='c')
                     num_lbl.grid(row=r,column=1,sticky='news')
-                    p2_lbl = ttk.Label(self, text=self.simulator.get_times_scored_n(self.simulator.player2,i), anchor='w')
+                    p2_lbl = ttk.Label(self, text=self.simulator.get_times_scored_n(self.simulator.p2(),i), anchor='w')
                     p2_lbl.grid(row=r,column=2,sticky='news')
 
                     self.score_lbls_p1.append(p1_lbl)
