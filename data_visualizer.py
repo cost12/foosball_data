@@ -1035,7 +1035,7 @@ class GraphView(View):
         super().__init__(frm)
         
         self.supported_xs = ['date','number','game']
-        self.supported_ys = ['wins','goals','colley win rank', 'colley goal rank', 'elo', 'skill']
+        self.supported_ys = ['wins','goals','colley win rank', 'colley goal rank', 'elo', 'skill','avg gf', 'avg ga']
 
         self.players_to_show = MultiSelector(self,"Players")
         self.players_to_show.add_listener(self)
@@ -1096,7 +1096,7 @@ class GraphView(View):
         if choice == 'date':
             return self.stats.list_dates()
         elif choice in ['number','game']:
-            return self.stats.list_numbers()
+            return self.stats.list_numbers(selected_only=True)
         else:
             print(f"ERROR: unknown x axis {choice}")
 
@@ -1105,9 +1105,9 @@ class GraphView(View):
         if choice == 'date':
             return self.stats.list_dates()
         elif choice == 'number':
-            return self.stats.list_numbers()
+            return self.stats.list_numbers(selected_only=True)
         elif choice == 'game':
-            return list(range(len(self.stats.list_numbers())))
+            return list(range(len(self.stats.list_numbers(selected_only=True))))
         else:
             print(f"ERROR: unknown x axis {choice}")
         
@@ -1133,6 +1133,14 @@ class GraphView(View):
         elif choice == 'skill':
             return myranks.get_rankings_list(self.stats.filtered,self.get_x_cutoffs(),self.players_to_show.get_as_list(),
                                              is_daily=self.x_choice.get_selected()=='date',syst=myranks.SkillRating,name='Skill',alpha=self.alpha_val.value)
+        elif choice == 'avg gf':
+            return graphsyousee.get_list_over_range(self.stats.filtered,self.get_x_cutoffs(),self.players_to_show.get_as_list(),
+                                                    lambda games:foosballgame.get_average_scores(games),self.x_choice.get_selected()=='date',
+                                                    lambda x: x[0])
+        elif choice == 'avg ga':
+            return graphsyousee.get_list_over_range(self.stats.filtered,self.get_x_cutoffs(),self.players_to_show.get_as_list(),
+                                                    lambda games:foosballgame.get_average_scores_allowed(games),self.x_choice.get_selected()=='date',
+                                                    lambda x: x[0])
         else:
             print(f"ERROR: unknown y axis {choice}")
 
