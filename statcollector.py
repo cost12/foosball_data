@@ -40,11 +40,12 @@ class StatCollector:
         self.stat_categories = dict[str,list[str]]( \
             {'standings': ['Name', 'G', 'W', 'L', 'W PCT', 'STRK', 'GF', 'GA', 'G PCT', 'LWS', 'LLS'], \
              'ratings':   ['Name', 'G', 'W', 'L', 'W PROB', 'WOE', 'Skill', 'W RANK', 'G RANK', 'ELO', 'GOAL ELO'], \
+             'schedule':  ['Name', 'G', 'W', 'L', 'NW', 'NL', 'NW PCT', 'NSOS', 'NSOV', 'NSINDEX', 'SOS', 'SOV', 'SINDEX'], \
              'matchups':  ['Name', 'Opponent', 'G', 'W', 'L', 'W PCT', 'STRK', 'GF', 'GA', 'G PCT', 'LWS', 'LLS', 'W PROB', 'WOE'], \
              #'m ratings': ['Name', 'Opponent', 'G', 'W', 'L', 'W PROB', 'WOE'], \
              'games':     ['Winner', 'Loser', 'Winner Score', 'Loser Score', 'Winner Color', 'Date', 'Number', 'G PROB', 'LL PROB', 'LL EXIST PROB', 'EXIST PROB']} \
         )
-        self.stats_from_players = set[str]({'standings', 'ratings', 'streaks'})
+        self.stats_from_players = set[str]({'standings', 'ratings', 'schedule', 'streaks'})
         self.stats_from_matchups = set[str]({'matchups', 'm ratings', 'm streaks'})
         self.stats_from_games = set[str]({'games'})
 
@@ -126,7 +127,7 @@ class StatCollector:
 
         self.game_stats = pd.DataFrame.from_dict(data_g,orient='index')
 
-        self.individual_stats = pd.DataFrame.from_dict(self.individual_dict,orient='index')     
+        self.individual_stats = pd.DataFrame.from_dict(self.individual_dict,orient='index')
         self.individual_stats = self.__calculate_final_columns(self.individual_stats)
         stats = ['Name','G','W','L','W PCT','STRK','GF','GA','G PCT','W PROB','WOE','LWS','LLS']
         self.individual_stats = self.individual_stats[stats]
@@ -146,7 +147,68 @@ class StatCollector:
         self.individual_stats = self.individual_stats.merge(self.elo_tracker.to_df())
         self.individual_stats = self.individual_stats.merge(self.skill_tracker.to_df())
         
+        self.individual_stats['NW'] = self.normed(wins=True)
+        self.individual_stats['NL'] = self.normed(wins=False)
+        self.individual_stats['NW PCT'] = self.individual_stats['NW']/(self.individual_stats['NL']+self.individual_stats['NW'])
+        self.individual_stats['SOS'] = self.strength(victory=False)
+        self.individual_stats['SOV'] = self.strength(victory=True)
+        self.individual_stats['SINDEX'] = self.individual_stats['SOV']/self.individual_stats['SOS']
+        self.individual_stats['NSOS'] = self.strength(victory=False,normalized=True)
+        self.individual_stats['NSOV'] = self.strength(victory=True,normalized=True)
+        self.individual_stats['NSINDEX'] = self.individual_stats['NSOV']/self.individual_stats['NSOS']
+
         self.games_added = False
+
+    def strength(self, victory:bool, normalized:bool=False):
+        """
+        Calculates strength of schedule and strength of victory and returns an array
+        Can also calculate normalized sos and sov
+        """
+        soss = []
+        if victory:
+            consider = 'W'
+        else:
+            consider = 'G'
+        
+        for player in self.individual_stats['Name']:
+            wins = 0
+            losses = 0
+            for opponent in self.matchup_stats[self.matchup_stats['Name']==player]['Opponent']:
+                g = self.matchup_stats[(self.matchup_stats['Name']==player) & (self.matchup_stats['Opponent']==opponent)][consider][0]
+                if normalized:
+                    pct = self.individual_stats[self.individual_stats['Name'] == opponent]['W PCT']
+                    pct = list(pct)[0]
+                    wins += pct*g
+                    losses += (1-pct)*g
+                else:
+                    w = self.individual_stats[self.individual_stats['Name'] == opponent]['W']
+                    w = list(w)[0]
+                    wins += w*g
+                    l = self.individual_stats[self.individual_stats['Name'] == opponent]["L"]
+                    l = list(l)[0]
+                    losses += l*g
+            if wins > 0:
+                soss.append(wins/(wins+losses))
+            else:
+                soss.append(0)
+        return soss
+    
+    def normed(self, wins:bool):
+        """
+        Caluculates normalized wins or losses and returns in an array
+        """
+        totals = []
+
+        for player in self.individual_stats['Name']:
+            total = 0
+            for opponent in self.matchup_stats[self.matchup_stats['Name']==player]['Opponent']:
+                pct = self.matchup_stats[(self.matchup_stats['Name']==player) & (self.matchup_stats['Opponent']==opponent)]['W PCT'][0]
+                if wins:
+                    total += pct
+                else:
+                    total += 1-pct
+            totals.append(total)
+        return totals
         
     """
     Adds the last few columns onto the dataframes
