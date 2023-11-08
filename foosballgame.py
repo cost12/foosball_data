@@ -61,7 +61,7 @@ class FoosballMatchup:
 
 	def notify_listeners(self):
 		for listener in self.listeners:
-			listener.update_matchup(self.id)
+			listener.update_matchup(self)
 
 	def to_foosball_game(self, number:int, date:datetime.date=None) -> FoosballGame|None:
 		if self.is_over():

@@ -1380,7 +1380,7 @@ class TournamentCreatorView(View):
         self.seed_selector = SingleSelector(top_frame, "Seeding", ["as entered","skill","random"], selected='as entered')
         self.seed_selector.grid(row=0,column=2,sticky='news')
         
-        self.type_selector = SingleSelector(top_frame, "Type", ["single elimination"],selected='single elimination') #,"double elimination","round robin"
+        self.type_selector = SingleSelector(top_frame, "Type", ["single elimination","round robin"],selected='single elimination') #,"double elimination","round robin"
         self.type_selector.grid(row=0,column=3,sticky='news')
         
         self.reseed_selector = SingleSelector(top_frame, "Round Seeding", ["round reseeding"],selected='round reseeding')#"fixed seeding",

@@ -82,7 +82,12 @@ class Simulator:
     Get the total goals scored for player1 against player2 in all games
     """
     def get_goals_for(self, player:str) -> int:
-        return self.matchup.get_score(player)
+        if player == self.p1():
+            return self.stats.get_goals_scored_on(self.p1(),self.p2())
+        elif player == self.p2():
+            return self.stats.get_goals_scored_on(self.p2(),self.p1())
+        else:
+            return 0
         
     """
     Get the total wins for player1 against player2 in all games

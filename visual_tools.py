@@ -654,12 +654,16 @@ class BracketView(ttk.Frame):
         c = 0
         for round in self.tournament.round_results:
             r = 0
-            for matchup in round.matchups:
-                new = MatchupView(self)
-                new.attach(matchup)
-                new.grid(row=r,column=c,sticky='news')
-                self.views.append(new)
-                r += 1
+            for group in round:
+                for matchup in group.matchups:
+                    new = MatchupView(self)
+                    new.attach(matchup)
+                    new.grid(row=r,column=c,sticky='news')
+                    self.views.append(new)
+                    r += 1
+                    if r > 3:
+                        r = 0
+                        c += 1
             c += 1
 
     def detach(self) -> None:
