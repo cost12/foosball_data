@@ -21,7 +21,7 @@ class GameFilter:
 		self.restrict = True
 
 		self.win_score_max = 10
-		self.win_score_min = 10
+		self.win_score_min = 1
 
 		self.lose_score_max = 9
 		self.lose_score_min = 0
