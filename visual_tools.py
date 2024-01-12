@@ -15,7 +15,7 @@ Select values from a list of values
 """
 class MultiSelector(ttk.Frame):
 
-    def __init__(self, frm:ttk.Frame, name:str, options:list[str] = None, apply_btn:bool=False, sorted:bool=True) -> None:
+    def __init__(self, frm:ttk.Frame, name:str, options:list[str] = None,*, max_len:int=20, apply_btn:bool=False, sorted:bool=True) -> None:
         super().__init__(frm, borderwidth=2, relief='groove')
 
         self.frm = frm
@@ -26,6 +26,7 @@ class MultiSelector(ttk.Frame):
             self.options = options
         self.apply_btn = apply_btn
         self.sorted = sorted
+        self.max_len = max_len
 
         self.listeners = []
 
@@ -34,12 +35,6 @@ class MultiSelector(ttk.Frame):
 
         ttk.Label(self,text=self.name).grid(row=0,column=0,columnspan=2,sticky='news')
         self.__place_buttons()
-
-        ttk.Button(self, text='Select All',   command=self.select_all).grid(row=1,column=1,sticky='news')
-        ttk.Button(self, text='Deselect All', command=self.deselect_all).grid(row=2,column=1,sticky='news')
-
-        if apply_btn:
-            ttk.Button(self, text='Apply', command=self.value_update).grid(row=3,column=1,sticky='news')
 
     """
     Return the selected values as a list
@@ -112,6 +107,7 @@ class MultiSelector(ttk.Frame):
         self.options.clear()
         self.selected.clear()
 
+    """
     def remove_option(self, option:str) -> bool:
         if option in self.options:
             index = self.options.index(option)
@@ -120,10 +116,12 @@ class MultiSelector(ttk.Frame):
             self.options.pop(index)
             self.selected.pop(index)
             for i in range(index,len(self.check_btns)):
-                btn.grid(row=i,column=0,sticky='news')
+                btn.grid(row=i%20,column=i//20,sticky='news')
             return True
         return False
-    
+    """
+        
+    """
     def add_option(self, option:str, select:bool=True) -> None:
         if self.sorted:
             if c.DEBUG_MODE:
@@ -139,7 +137,10 @@ class MultiSelector(ttk.Frame):
             if select:
                 self.check_btns[-1].state(['selected'])
                 self.selected[-1].set(1)
-            self.check_btns[-1].grid(row=len(self.options),column=0,sticky='news')
+            r = len(self.options)%self.max_len
+            c = len(self.options)//self.max_len
+            self.check_btns[-1].grid(row=r,column=c,sticky='news')
+    """
 
     def add_options(self, options:list[str]) -> None:
         for option in options:
@@ -151,7 +152,7 @@ class MultiSelector(ttk.Frame):
         self.__place_buttons()
 
     def __place_buttons(self):
-        r=1
+        r=0
         if self.sorted:
             self.options.sort()
         for option in self.options:
@@ -163,8 +164,25 @@ class MultiSelector(ttk.Frame):
             self.check_btns[-1].state(['!alternate'])
             self.check_btns[-1].state(['selected'])
             self.selected[-1].set(1)
-            self.check_btns[-1].grid(row=r,column=0,sticky='news')
+            r2 = r%self.max_len + 1
+            c = r//self.max_len
+            self.check_btns[-1].grid(row=r2,column=c,sticky='news')
             r += 1
+
+        c = r//self.max_len + 1
+        self.end_btns = []
+        b1 = ttk.Button(self, text='Select All',   command=self.select_all)
+        b1.grid(row=1,column=c,sticky='news')
+        self.end_btns.append(b1)
+
+        b2 = ttk.Button(self, text='Deselect All', command=self.deselect_all)
+        b2.grid(row=2,column=c,sticky='news')
+        self.end_btns.append(b2)
+
+        if self.apply_btn:
+            b3 = ttk.Button(self, text='Apply', command=self.value_update)
+            b3.grid(row=3,column=c,sticky='news')
+            self.end_btns.append(b3)
 
 """ TODO: should duplicates be allowed? right now they are
 Select a value from a list of values
@@ -356,31 +374,36 @@ UI to adjust a value with an optional min/max
 """
 class ValueAdjustor(ttk.Frame):
     
-    def __init__(self, frm:ttk.Frame, name:str, cur_val:float=0, min_val:Union[float,None]=None, max_val:Union[float,None]=None, step:float=1, apply_btn=False) -> None:
+    def __init__(self, frm:ttk.Frame, name:str, cur_val:float=0, min_val:Union[float,None]=None, max_val:Union[float,None]=None,*, is_int:bool=True, apply_btn=False) -> None:
         super().__init__(frm, borderwidth=2, relief='raised')
 
         assert ((min_val is not None and min_val <= cur_val) or min_val is None) and ((max_val is not None and cur_val <= max_val) or max_val is None)
 
         self.frm = frm
         self.name = name
-        self.value = cur_val
         self.max_val = max_val
         self.min_val = min_val
-        self.step = step
+        self.is_int = is_int
         self.apply_btn = apply_btn
 
         self.listeners = []
 
         r = 0
-        ttk.Label(self,text=self.name,anchor='c').grid(row=r,column=0,columnspan=3,sticky='news')
+        ttk.Label(self,text=self.name,anchor='c').grid(row=r,column=0,columnspan=2,sticky='news')
         r += 1
-        ttk.Button(self,text='-',command=self.decrease).grid(row=r,column=0)#,sticky='news')
-        self.val_lbl = ttk.Label(self,text=self.value,anchor='c')
-        self.val_lbl.grid(row=r,column=1,sticky='news')
-        ttk.Button(self,text='+',command=self.increase).grid(row=r,column=2)#,sticky='news')
+        if is_int:
+            self.val = tk.IntVar()
+        else:
+            self.val = tk.DoubleVar()
+        self.val.set(cur_val)
+        ttk.Entry(self,textvariable=self.val).grid(row=r,column=0,sticky='news')
+        ttk.Button(self,text='Update',command=self.update_labels).grid(row=r,column=1)#,sticky='news')
         r+=1
         if self.apply_btn:
-            ttk.Button(self,text='Apply',command=self.notify_listeners).grid(row=r,column=0,columnspan=3)
+            ttk.Button(self,text='Apply',command=self.notify_listeners).grid(row=r,column=0,columnspan=2)
+
+    def get_value(self):
+        return self.val.get()
 
     """
     Adds a listener that will be notified when value is changed
@@ -392,39 +415,20 @@ class ValueAdjustor(ttk.Frame):
     Updates lables to show current values
     """
     def update_labels(self, as_click:bool=True) -> None:
-        text = self.value
-        if type(self.value) == float:
-            text = f'{self.value:.3f}'
-        self.val_lbl.config(text=text)
+        if self.max_val is not None and self.val.get() > self.max_val:
+            self.val.set(self.max_val)
+        elif self.min_val is not None and self.val.get() < self.min_val:
+            self.val.set(self.min_val)
         if not self.apply_btn and as_click:
             self.notify_listeners()
 
     def notify_listeners(self):
         for listener in self.listeners:
-            listener.update_value(self.name, self.value)
-
-    """
-    If it's within range, decreases the value and updates the label
-    """
-    def decrease(self, as_click:bool=True) -> None:
-        if self.min_val is None or self.value > self.min_val:
-            self.value = max(self.value - self.step, self.min_val)
-            self.update_labels(as_click)
-
-    """
-    If it's within range, increases the value and updates the label
-    """
-    def increase(self, as_click:bool=True) -> None:
-        if self.max_val is None:
-            self.value = self.value + self.step
-            self.update_labels(as_click)
-        elif self.value < self.max_val:
-            self.value = min(self.value + self.step, self.max_val)
-            self.update_labels(as_click)
+            listener.update_value(self.name, self.get_value())
 
     def set_value(self, value, as_click:bool=True) -> None:
         if (self.max_val is None or value <= self.max_val) and (self.min_val is None or self.min_val <= value):
-            self.value = value
+            self.val.set(value)
             self.update_labels(as_click)
 
     """
@@ -434,8 +438,8 @@ class ValueAdjustor(ttk.Frame):
         self.min_val = new_min
         if self.min_val is not None and self.max_val is not None and self.min_val > self.max_val:
             self.max_val = self.min_val
-        if self.min_val is not None and self.min_val > self.value:
-            self.value = self.min_val
+        if self.min_val is not None and self.min_val > self.val.get():
+            self.val.set(self.min_val)
             self.update_labels(as_click)
 
     """
@@ -445,8 +449,8 @@ class ValueAdjustor(ttk.Frame):
         self.max_val = new_max
         if self.min_val is not None and self.max_val is not None and self.max_val < self.min_val:
             self.min_val = self.max_val
-        if self.max_val is not None and self.max_val < self.value:
-            self.value = self.max_val
+        if self.max_val is not None and self.max_val < self.val.get():
+            self.val.set(self.max_val)
             self.update_labels(as_click)
 
 """

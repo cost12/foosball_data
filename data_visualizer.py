@@ -1049,7 +1049,7 @@ class GraphView(View):
         self.y_choice.add_listener(self)
         self.y_choice.grid(row=1,column=1,sticky='news')
 
-        self.alpha_val = ValueAdjustor(self,'alpha',0.1,0,1,0.05)
+        self.alpha_val = ValueAdjustor(self,'alpha',0.1,0,1,is_int=False)
         self.alpha_val.add_listener(self)
         self.alpha_val.grid(row=2,column=1,sticky='news')
 
@@ -1180,7 +1180,7 @@ class RecordsView(View):
         self.n_select = ValueAdjustor(self,"Select n", 3, 1, None, apply_btn=True)
         self.n_select.add_listener(self)
         self.n_select.grid(row=0,column=0,sticky='news')
-        self.n = self.n_select.value
+        self.n = self.n_select.get_value()
 
         self.scroll = ValueAdjustor(self, "Scroll", 0, 0, None)
         self.scroll.add_listener(self)
