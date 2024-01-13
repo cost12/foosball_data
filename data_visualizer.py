@@ -1132,7 +1132,7 @@ class GraphView(View):
                                          is_daily=self.x_choice.get_selected()=='date')
         elif choice == 'skill':
             return myranks.get_rankings_list(self.stats.filtered,self.get_x_cutoffs(),self.players_to_show.get_as_list(),
-                                             is_daily=self.x_choice.get_selected()=='date',syst=myranks.SkillRating,name='Skill',alpha=self.alpha_val.value)
+                                             is_daily=self.x_choice.get_selected()=='date',syst=myranks.SkillRating,name='Skill',alpha=self.alpha_val.get_value())
         elif choice == 'avg gf':
             return graphsyousee.get_list_over_range(self.stats.filtered,self.get_x_cutoffs(),self.players_to_show.get_as_list(),
                                                     lambda games:foosballgame.get_average_scores(games),self.x_choice.get_selected()=='date',
@@ -1239,7 +1239,7 @@ class RecordsView(View):
             self.regrid()
 
     def regrid(self):
-        scroll = self.scroll.value
+        scroll = self.scroll.get_value()
         if scroll > 1:
             scroll = 2*scroll - 1
         i = 0
