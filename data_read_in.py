@@ -134,38 +134,7 @@ def read_in_dates_options(filename=DATE_OPTIONS_FILENAME) -> list[utils.SheetIde
     return read_in_games_options(filename)
 
 
-def read_df_to_games(game_df:pd.DataFrame):
-    if 'Winner Name' in game_df.columns:
-        return read_1v1_games(game_df)
-    elif 'Solo Name' in game_df.columns:
-        return read_2v1_games(game_df)
-    elif 'W Defense' in game_df.columns:
-        return read_2v2_games(game_df)
-    
-def read_2v2_games(game_df:pd.DataFrame):
-    pass
-
-def read_2v1_games(game_df:pd.DataFrame):
-    games = []
-    for i in range(0,len(game_df)):
-        solo = game_df.iloc[i]['Solo Name']
-        if type(solo) != str:
-            break
-        offense = game_df.iloc[i]['Offense Name']
-        defense = game_df.iloc[i]['Defense Name']
-        loser =  game_df.iloc[i]['Loser Name']
-        solo_score = game_df.iloc[i]['Solo Score']
-        team_score =  game_df.iloc[i]['Team Score']
-        solo_color = game_df.iloc[i]['Solo Color']
-        date = game_df.iloc[i]['Date'] #datetime.strptime(str(game_df.iloc[i]['Date']),'%d/%m/%Y')
-        date = datetime.date(int(date[6:]),int(date[0:2]),int(date[3:5]))
-        number = game_df.iloc[i]['Number']
-
-        game = foosballgame.FoosballGame(winner,loser,winner_score,loser_score,winner_color,date,number)
-        games.append(game)
-    return games
-    
-def read_1v1_games(game_df):
+def read_df_to_games(game_df):
     games = []
     for i in range(0,len(game_df)):
         winner = game_df.iloc[i]['Winner Name']
