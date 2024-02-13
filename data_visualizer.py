@@ -1035,7 +1035,7 @@ class GraphView(View):
         super().__init__(frm)
         
         self.supported_xs = ['date','number','game']
-        self.supported_ys = ['wins','goals','colley win rank', 'colley goal rank', 'elo', 'skill','avg gf', 'avg ga']
+        self.supported_ys = ['wins','goals','colley win rank', 'colley goal rank', 'elo', 'skill','avg gf', 'avg ga','win streak', 'win prob']
 
         self.players_to_show = MultiSelector(self,"Players")
         self.players_to_show.add_listener(self)
@@ -1141,6 +1141,13 @@ class GraphView(View):
             return graphsyousee.get_list_over_range(self.stats.filtered,self.get_x_cutoffs(),self.players_to_show.get_as_list(),
                                                     lambda games:foosballgame.get_average_scores_allowed(games),self.x_choice.get_selected()=='date',
                                                     lambda x: x[0])
+        elif choice == 'win streak':
+            return graphsyousee.get_list_over_range(self.stats.filtered,self.get_x_cutoffs(),self.players_to_show.get_as_list(),
+                                                    lambda games:foosballgame.get_streaks(games),self.x_choice.get_selected()=='date',
+                                                    lambda x: x['win'] if x['win'] > 0 else -x['loss'])
+        elif choice == 'win prob':
+            return graphsyousee.get_list_over_range(self.stats.filtered,self.get_x_cutoffs(),self.players_to_show.get_as_list(),
+                                                    lambda games:foosballgame.get_win_probabilities(games),self.x_choice.get_selected()=='date')
         else:
             print(f"ERROR: unknown y axis {choice}")
 

@@ -481,10 +481,10 @@ def get_win_prob(p1goalprob, p1score=0,p2score=0,gameto=10):
 	return probability_p2_loses
 
 def get_win_probabilities(games, p1score=0,p2score=0,gameto=10):
-	goal_probs = goal_probs(games)
+	gpbs = goal_probs(games)
 	win_probs = {}
-	for player in goal_probs.keys():
-		win_probs[player] = get_win_prob(goal_probs[player], p1score,p2score,gameto)
+	for player in gpbs.keys():
+		win_probs[player] = get_win_prob(gpbs[player], p1score,p2score,gameto)
 	return win_probs
 
 def get_prob_of_score(goalprob,score,cur_score=0,opp_score=0,gameto=10):
