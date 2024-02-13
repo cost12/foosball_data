@@ -215,10 +215,23 @@ class ProbabilitySimulator(Simulator):
         p2_goals = self.stats.get_goals_scored_on(self.matchup.away_team,self.matchup.home_team)
         return (p1_goals+self.matchup.home_score+1)/(p1_goals+p2_goals+self.matchup.home_score+self.matchup.away_score+2)
     
+class EloSimulator(Simulator):
+
+    def __init__(self,matchup:foosballgame.FoosballMatchup):
+        super().__init__(matchup)
+
+    def get_p1_goal_prob(self) -> float:
+        elo = self.stats.get_elo()
+        p1_prob = elo.get_goal_probability(self.matchup.home_team,self.matchup.away_team)
+        return p1_prob
+
+
 def get_simulator(p1:str,p2:str,type:str):
     if type.lower() == 'skill':
         return SkillSimulator(foosballgame.FoosballMatchup(p1,p2,0))
     if type.lower() in ['prob', 'probability']:
         return ProbabilitySimulator(foosballgame.FoosballMatchup(p1,p2,0))
+    if type.lower() == 'elo':
+        return EloSimulator(foosballgame.FoosballMatchup(p1,p2,0))
     else:
         print(f"Unknown simulator type {type}")

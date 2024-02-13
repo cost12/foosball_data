@@ -354,13 +354,13 @@ class SimView(View):
         self.player1=tk.StringVar()
         self.player2=tk.StringVar()
         # TODO: simulator should be something that gets passed into attach
-        self.simulator = simulator.get_simulator(self.player1.get(),self.player2.get(), 'prob' if self.show_probs else 'skill')
+        self.simulator = simulator.get_simulator(self.player1.get(),self.player2.get(), 'Probability')
 
         top_frm = ttk.Frame(self)
 
-        selector = SingleSelector(top_frm,'Simulation Type',['Probability','Skill'])
-        selector.add_listener(self)
-        selector.grid(row=0,column=0,sticky='news')
+        self.selector = SingleSelector(top_frm,'Simulation Type',['Probability','Skill', 'ELO'], selected='Probability')
+        self.selector.add_listener(self)
+        self.selector.grid(row=0,column=0,sticky='news')
         self.is_skill = False
 
         self.goal_points = ValueAdjustor(top_frm, 'Goals to Win', 10, 1, None)
@@ -512,7 +512,7 @@ class SimView(View):
     Resets the simulator
     """
     def reset(self) -> None: # TODO: there must be a better way to do this
-        self.simulator = simulator.get_simulator(self.player1.get(),self.player2.get(),'skill' if self.is_skill else 'prob')
+        self.simulator = simulator.get_simulator(self.player1.get(),self.player2.get(),self.selector.get_selected())
         self.simulator.attach(self.stats)
         self.goal_points.set_value(10)
         #self.update_labels() - auto called by previous line

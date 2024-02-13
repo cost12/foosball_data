@@ -391,6 +391,10 @@ class StatCollector:
             return self.matchup_stats[['Name', 'Opponent', stat]]
         elif df == 'games':
             return self.game_stats[['Number', stat]]
+        
+    def get_elo(self) -> elo.ELO_Calculator:
+        self.__uses_dicts()
+        return self.elo_tracker
 
     """
     Filters the games by selecting ones from the given timeframe and returns a new StatCollector, or updates the current one
