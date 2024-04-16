@@ -90,6 +90,7 @@ class Records:
                     stats = self.stats.get_stats('games')
                     return self.__get_top_win_streaks(stats, time_frame, n)
                 stats = self.stats.get_stat(self.categories[category],'individual')
+                stats = stats[(stats['Name'] != 'B') & (stats['Name'] != 'W')]
                 best = stats.nlargest(n,self.categories[category],'all')
                 performances = []
                 for i in range(len(best.index)):

@@ -141,11 +141,13 @@ class StatCollector:
         colley_g = colley.get_colley_rankings(self.filtered,by_wins=False)
         colley_w = pd.DataFrame.from_dict(colley_w,orient='index')
         colley_g = pd.DataFrame.from_dict(colley_g,orient='index')
-        self.individual_stats = self.individual_stats.merge(colley_w)
-        self.individual_stats = self.individual_stats.merge(colley_g)
+        self.individual_stats = self.individual_stats.merge(colley_w,how='left')
+        self.individual_stats = self.individual_stats.merge(colley_g,how='left')
 
-        self.individual_stats = self.individual_stats.merge(self.elo_tracker.to_df())
-        self.individual_stats = self.individual_stats.merge(self.skill_tracker.to_df())
+        self.individual_stats = self.individual_stats.merge(self.elo_tracker.to_df(),how='left')
+        self.individual_stats = self.individual_stats.merge(self.skill_tracker.to_df(),how='left')
+        self.individual_stats = self.individual_stats.fillna(0)
+        self.individual_stats = self.individual_stats.astype({'ELO':int,'GOAL ELO':int})
         
         self.individual_stats['NW'] = self.normed(wins=True)
         self.individual_stats['NL'] = self.normed(wins=False)
@@ -256,6 +258,11 @@ class StatCollector:
         self.elo_tracker.add_game(game)
         self.skill_tracker.add_game(game)
 
+        if 'B' not in self.individual_dict:
+            self.individual_dict['B'] = {'Name':'B','W':0,'L':0,'GF':0,'GA':0,'Streak':gameinfo.StreakKeeper()}
+            self.individual_dict['W'] = {'Name':'W','W':0,'L':0,'GF':0,'GA':0,'Streak':gameinfo.StreakKeeper()}
+            self.matchup_dict['BW'] = {'Name':'B','Opponent':'W','W':0,'L':0,'GF':0,'GA':0,'Streak':gameinfo.StreakKeeper()}
+            self.matchup_dict['WB'] = {'Name':'W','Opponent':'B','W':0,'L':0,'GF':0,'GA':0,'Streak':gameinfo.StreakKeeper()}
         # Commented out lines are for if TODO below works
         if game.winner not in self.individual_dict:
             self.individual_dict[game.winner] = {'Name':game.winner,'W':0,'L':0,'GF':0,'GA':0,'Streak':gameinfo.StreakKeeper()}
@@ -272,25 +279,26 @@ class StatCollector:
         if game.loser+game.winner not in self.matchup_dict:
             self.matchup_dict[game.loser+game.winner] = {'Name':game.loser,'Opponent':game.winner,'W':0,'L':0,'GF':0,'GA':0,'Streak':gameinfo.StreakKeeper()}
 
-        self.individual_dict[game.winner]['W'] += 1
-        self.individual_dict[game.winner]['GF'] += game.winner_score
-        self.individual_dict[game.winner]['GA'] += game.loser_score
-        self.individual_dict[game.winner]['Streak'].add_result('W')
+        for w,l in [(game.winner, game.loser),(game.winner_color,game.loser_color())]:
+            self.individual_dict[w]['W'] += 1
+            self.individual_dict[w]['GF'] += game.winner_score
+            self.individual_dict[w]['GA'] += game.loser_score
+            self.individual_dict[w]['Streak'].add_result('W')
 
-        self.matchup_dict[game.winner+game.loser]['W'] += 1
-        self.matchup_dict[game.winner+game.loser]['GF'] += game.winner_score
-        self.matchup_dict[game.winner+game.loser]['GA'] += game.loser_score
-        self.matchup_dict[game.winner+game.loser]['Streak'].add_result('W')
+            self.individual_dict[l]['L'] += 1
+            self.individual_dict[l]['GF'] += game.loser_score
+            self.individual_dict[l]['GA'] += game.winner_score
+            self.individual_dict[l]['Streak'].add_result('L')
 
-        self.individual_dict[game.loser]['L'] += 1
-        self.individual_dict[game.loser]['GF'] += game.loser_score
-        self.individual_dict[game.loser]['GA'] += game.winner_score
-        self.individual_dict[game.loser]['Streak'].add_result('L')
+            self.matchup_dict[w+l]['W'] += 1
+            self.matchup_dict[w+l]['GF'] += game.winner_score
+            self.matchup_dict[w+l]['GA'] += game.loser_score
+            self.matchup_dict[w+l]['Streak'].add_result('W')
 
-        self.matchup_dict[game.loser+game.winner]['L'] += 1
-        self.matchup_dict[game.loser+game.winner]['GF'] += game.loser_score
-        self.matchup_dict[game.loser+game.winner]['GA'] += game.winner_score
-        self.matchup_dict[game.loser+game.winner]['Streak'].add_result('L')
+            self.matchup_dict[l+w]['L'] += 1
+            self.matchup_dict[l+w]['GF'] += game.loser_score
+            self.matchup_dict[l+w]['GA'] += game.winner_score
+            self.matchup_dict[l+w]['Streak'].add_result('L')
         
         self.games_added = True
 
@@ -309,6 +317,8 @@ class StatCollector:
         else:
             game_space = self.games
         players = set()
+        players.add('W')
+        players.add('B')
         for game in game_space:
             players.add(game.winner)
             players.add(game.loser)

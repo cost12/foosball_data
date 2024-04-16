@@ -56,7 +56,3 @@ def get_list_over_range(games, xlist, players, function, is_daily, modifier=lamb
 			else:
 				player_lists[player].append(0)
 	return player_lists
-
-"""
-
-"""

@@ -90,14 +90,14 @@ class ELO_Calculator():
     Calculate the expected probability that player1 beats player2
     """
     def get_win_probability(self, player1:str, player2:str) -> float:
-        p1_odds = 1/(1+pow(10,(self.game_ratings[player2]-self.game_ratings[player1])/400))
+        p1_odds = 1/(1+pow(10,(self.game_ratings[player2]-self.game_ratings[player1])/400)) # 480
         return p1_odds
     
     """
     Calculate the expected probability that player1 scores on player2
     """
     def get_goal_probability(self, player1:str, player2:str) -> float:
-        p1_odds = 1/(1+pow(10,(self.goal_ratings[player2]-self.goal_ratings[player1])/400))
+        p1_odds = 1/(1+pow(10,(self.goal_ratings[player2]-self.goal_ratings[player1])/400)) # 480
         return p1_odds
 
     """
@@ -119,9 +119,9 @@ class ELO_Calculator():
 """
 Returns the rankings formatted for graph output
 """
-def get_rankings_list(games:list[foosballgame.FoosballGame], xlist:list, players:list[str], is_daily:bool, by_wins:bool = True) -> dict[str:float]:
+def get_rankings_list(games:list[foosballgame.FoosballGame], xlist:list, players:list[str], is_daily:bool, by_wins:bool = True,*,init_val=1500,k_val=32) -> dict[str:float]:
     rankings = {}
-    elo_tracker = ELO_Calculator()
+    elo_tracker = ELO_Calculator(initial_rating=init_val,k_value=k_val)
     game_ind = 0
     
     for player in players:

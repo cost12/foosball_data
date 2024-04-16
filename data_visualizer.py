@@ -363,7 +363,7 @@ class SimView(View):
         self.selector.grid(row=0,column=0,sticky='news')
         self.is_skill = False
 
-        self.goal_points = ValueAdjustor(top_frm, 'Goals to Win', 10, 1, None)
+        self.goal_points = ValueAdjustor(top_frm, 'Goals to Win', 10, 1, None, plus_minus_btns=True)
         self.goal_points.add_listener(self)
         self.goal_points.grid(row=0,column=1,sticky='news')
 
@@ -862,19 +862,27 @@ class FilterView(View):
         self.loser_select.add_listener(self)
         self.loser_select.grid(row=1,column=1,rowspan=4,sticky='news')
 
-        self.restrict_select = MultiSelector(self, 'Restrict', ['restrict'])
+        self.restrict_select = SingleSelector(self, 'Select Type', ['restricted','open','single'], selected='restricted')
         self.restrict_select.add_listener(self)
-        self.restrict_select.grid(row=5,column=0,columnspan=2,sticky='news')
+        self.restrict_select.grid(row=5,column=0,columnspan=1,sticky='news')
+
+        self.winner_color_select = MultiSelector(self, 'Winner Color', ['B','W'])
+        self.winner_color_select.add_listener(self)
+        self.winner_color_select.grid(row=5,column=1,columnspan=1,sticky='news')
 
         self.event_select = MultiSelector(self, 'Event Select')
         self.event_select.add_listener(self)
         self.event_select.grid(row=1,column=2,rowspan=2,sticky='news')
 
-        self.loser_score_range = RangeAdjustor(self, 'Loser Score')
+        self.day_select = MultiSelector(self, 'Day Select', ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday','Sunday'], sorted=False)
+        self.day_select.add_listener(self)
+        self.day_select.grid(row=3,column=2,rowspan=1,sticky='news')
+
+        self.loser_score_range = RangeAdjustor(self, 'Loser Score',plus_minus_btns=True)
         self.loser_score_range.add_listener(self)
         self.loser_score_range.grid(row=1,column=3,sticky='news')
 
-        self.number_range = RangeAdjustor(self, 'Number')
+        self.number_range = RangeAdjustor(self, 'Number',plus_minus_btns=True)
         self.number_range.add_listener(self)
         self.number_range.grid(row=2,column=3,sticky='news')
 
@@ -912,9 +920,20 @@ class FilterView(View):
             for player in self.filter.losers:
                 self.loser_select.select(player, like_click=False)
 
+            self.restrict_select.select(gamefilter.GameFilter.select_to_str(self.filter.select_type), like_click=False)
+
+            self.winner_color_select.deselect_all(like_click=False)
+            for color in self.filter.winner_color:
+                self.winner_color_select.select(color, like_click=False)
+
             self.event_select.deselect_all(like_click=False)
             for event in self.filter.date_ranges:
                 self.event_select.select(event.name, like_click=False)
+
+            self.day_select.deselect_all(like_click=False)
+            days = []
+            for day in self.filter.days_of_week:
+                self.day_select.select(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday','Sunday'][day],like_click=False)
 
             self.loser_score_range.set_low_val(self.filter.lose_score_min)
             self.loser_score_range.set_high_val(self.filter.lose_score_max)
@@ -922,10 +941,6 @@ class FilterView(View):
             self.number_range.set_low_val(self.filter.number_min)
             self.number_range.set_high_val(self.filter.number_max)
 
-            if self.filter.restrict:
-                self.restrict_select.select_all(like_click=False)
-            else:
-                self.restrict_select.deselect_all(like_click=False)
         else:
             self.filter.winners.clear()
             self.filter.winners.update(self.winner_select.options)
@@ -942,8 +957,6 @@ class FilterView(View):
             self.number_range.set_low_val(self.stats.min_num_selected())
             self.number_range.set_high_val(self.stats.max_num_selected())
 
-            self.restrict_select.select_all()
-            self.filter.restrict = True
             self.filter.initialized = True
 
     def detach(self):
@@ -1020,8 +1033,15 @@ class FilterView(View):
             for event in value:
                 events.append(self.date_lookup[event])
             self.filter.date_ranges = events
-        elif name == 'Restrict':
-            self.filter.restrict = (len(value)==1)
+        elif name == 'Day Select':
+            days = []
+            for day in value:
+                days.append(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday','Sunday'].index(day))
+            self.filter.days_of_week = days
+        elif name == 'Select Type':
+            self.filter.select_type = gamefilter.GameFilter.str_to_select(value)
+        elif name == 'Winner Color':
+            self.filter.winner_color = value
         else:
             return # only update labels if something happens
         self.update_labels()
@@ -1035,7 +1055,7 @@ class GraphView(View):
         super().__init__(frm)
         
         self.supported_xs = ['date','number','game']
-        self.supported_ys = ['wins','goals','colley win rank', 'colley goal rank', 'elo', 'skill','avg gf', 'avg ga','win streak', 'win prob']
+        self.supported_ys = ['wins','goals','colley win rank', 'colley goal rank', 'elo', 'skill','avg gf', 'avg ga','win streak', 'win prob','games','win pct', 'wins over expected']
 
         self.players_to_show = MultiSelector(self,"Players")
         self.players_to_show.add_listener(self)
@@ -1052,6 +1072,18 @@ class GraphView(View):
         self.alpha_val = ValueAdjustor(self,'alpha',0.1,0,1,is_int=False)
         self.alpha_val.add_listener(self)
         self.alpha_val.grid(row=2,column=1,sticky='news')
+
+        self.decay_val = ValueAdjustor(self,'decay',1,0,1,is_int=False)
+        self.decay_val.add_listener(self)
+        self.decay_val.grid(row=3,column=1,sticky='news')
+
+        self.elo_init_val = ValueAdjustor(self,'Elo initial',1500,is_int=True)
+        self.elo_init_val.add_listener(self)
+        self.elo_init_val.grid(row=3,column=0,sticky='news')
+
+        self.elo_k_val = ValueAdjustor(self,'Elo k value',32,is_int=True)
+        self.elo_k_val.add_listener(self)
+        self.elo_k_val.grid(row=4,column=0,sticky='news')
 
         self.graphed = False
         # TODO: this may cause an error, may be unecessary, leave in?
@@ -1084,9 +1116,6 @@ class GraphView(View):
             self.graph_display.get_tk_widget().destroy()
         self.graphed = False
 
-    """
-    
-    """
     def update_value(self, name, value):
         # doesn't really matter what was updated, time to redraw the graph
         self.reset()
@@ -1114,40 +1143,49 @@ class GraphView(View):
     def get_y_axis(self) -> dict[str,list]:
         choice = self.y_choice.get_selected()
         if choice == 'wins':
-            return graphsyousee.get_list_over_range(self.stats.filtered,self.get_x_cutoffs(),self.players_to_show.get_as_list(),
-                                                    lambda games:foosballgame.get_records(games),self.x_choice.get_selected()=='date',
-                                                    lambda x: x[0])
+            return utils.get_player_lists(self.stats.filtered,utils.wins_step,self.players_to_show.get_as_list(),
+                                          self.get_x_cutoffs(),self.x_choice.get_selected()=='date',day_decay=self.decay_val.get_value())
         elif choice == 'goals':
-            return graphsyousee.get_list_over_range(self.stats.filtered,self.get_x_cutoffs(),self.players_to_show.get_as_list(),
-                                                    lambda games:foosballgame.get_goals_scored_for_all(games),self.x_choice.get_selected()=='date',
-                                                    lambda x: x[0])
+            return utils.get_player_lists(self.stats.filtered,utils.goals_step,self.players_to_show.get_as_list(),
+                                          self.get_x_cutoffs(),self.x_choice.get_selected()=='date',day_decay=self.decay_val.get_value())
         elif choice == 'colley win rank':
-            return colley.get_rankings_list(self.stats.filtered,self.get_x_cutoffs(),self.players_to_show.get_as_list(),
-                                            is_daily=self.x_choice.get_selected()=='date',by_wins=True)
+            return colley.get_rankings_list(self.stats.filtered,self.get_x_cutoffs(),self.players_to_show.get_as_list(),self.stats.list_players(),
+                                            is_daily=self.x_choice.get_selected()=='date',by_wins=True,day_decay=self.decay_val.get_value())
         elif choice == 'colley goal rank':
-            return colley.get_rankings_list(self.stats.filtered,self.get_x_cutoffs(),self.players_to_show.get_as_list(),
-                                            is_daily=self.x_choice.get_selected()=='date',by_wins=False)
+            return colley.get_rankings_list(self.stats.filtered,self.get_x_cutoffs(),self.players_to_show.get_as_list(),self.stats.list_players(),
+                                            is_daily=self.x_choice.get_selected()=='date',by_wins=False,day_decay=self.decay_val.get_value())
         elif choice == 'elo':
             return elo.get_rankings_list(self.stats.filtered,self.get_x_cutoffs(),self.players_to_show.get_as_list(),
-                                         is_daily=self.x_choice.get_selected()=='date')
+                                         is_daily=self.x_choice.get_selected()=='date',init_val=self.elo_init_val.get_value(),k_val=self.elo_k_val.get_value())
         elif choice == 'skill':
             return myranks.get_rankings_list(self.stats.filtered,self.get_x_cutoffs(),self.players_to_show.get_as_list(),
                                              is_daily=self.x_choice.get_selected()=='date',syst=myranks.SkillRating,name='Skill',alpha=self.alpha_val.get_value())
         elif choice == 'avg gf':
-            return graphsyousee.get_list_over_range(self.stats.filtered,self.get_x_cutoffs(),self.players_to_show.get_as_list(),
-                                                    lambda games:foosballgame.get_average_scores(games),self.x_choice.get_selected()=='date',
-                                                    lambda x: x[0])
+            return utils.get_player_lists(self.stats.filtered,utils.gf_avg_step,self.players_to_show.get_as_list(),
+                                          self.get_x_cutoffs(),self.x_choice.get_selected()=='date',day_decay=self.decay_val.get_value(),
+                                          combine=utils.goals_avg_combine)
         elif choice == 'avg ga':
-            return graphsyousee.get_list_over_range(self.stats.filtered,self.get_x_cutoffs(),self.players_to_show.get_as_list(),
-                                                    lambda games:foosballgame.get_average_scores_allowed(games),self.x_choice.get_selected()=='date',
-                                                    lambda x: x[0])
+            return utils.get_player_lists(self.stats.filtered,utils.ga_avg_step,self.players_to_show.get_as_list(),
+                                          self.get_x_cutoffs(),self.x_choice.get_selected()=='date',day_decay=self.decay_val.get_value(),
+                                          combine=utils.goals_avg_combine)
         elif choice == 'win streak':
-            return graphsyousee.get_list_over_range(self.stats.filtered,self.get_x_cutoffs(),self.players_to_show.get_as_list(),
-                                                    lambda games:foosballgame.get_streaks(games),self.x_choice.get_selected()=='date',
-                                                    lambda x: x['win'] if x['win'] > 0 else -x['loss'])
+            return utils.get_player_lists(self.stats.filtered,utils.streaks_step,self.players_to_show.get_as_list(),
+                                          self.get_x_cutoffs(),self.x_choice.get_selected()=='date',day_decay=self.decay_val.get_value())
         elif choice == 'win prob':
-            return graphsyousee.get_list_over_range(self.stats.filtered,self.get_x_cutoffs(),self.players_to_show.get_as_list(),
-                                                    lambda games:foosballgame.get_win_probabilities(games),self.x_choice.get_selected()=='date')
+            return utils.get_player_lists(self.stats.filtered,utils.win_prob_step,self.players_to_show.get_as_list(),
+                                          self.get_x_cutoffs(),self.x_choice.get_selected()=='date',day_decay=self.decay_val.get_value(),
+                                          combine=utils.win_prob_combine)
+        elif choice == 'games':
+            return utils.get_player_lists(self.stats.filtered,utils.games_step,self.players_to_show.get_as_list(),
+                                          self.get_x_cutoffs(),self.x_choice.get_selected()=='date',day_decay=self.decay_val.get_value())
+        elif choice == 'win pct':
+            return utils.get_player_lists(self.stats.filtered,utils.win_pct_step,self.players_to_show.get_as_list(),
+                                          self.get_x_cutoffs(),self.x_choice.get_selected()=='date',day_decay=self.decay_val.get_value(),
+                                          combine=utils.win_pct_combine)
+        elif choice == 'wins over expected':
+            return utils.get_player_lists(self.stats.filtered,utils.wins_over_exp_step,self.players_to_show.get_as_list(),
+                                          self.get_x_cutoffs(),self.x_choice.get_selected()=='date',day_decay=self.decay_val.get_value(),
+                                          combine=utils.wins_over_exp_combine)
         else:
             print(f"ERROR: unknown y axis {choice}")
 
@@ -1174,10 +1212,11 @@ class GraphView(View):
     def update_labels(self) -> None:
         pass
 
-"""
-Display records accumulated across different time frames
-"""
+
 class RecordsView(View):
+    """
+    Display records accumulated across different time frames
+    """
 
     def __init__(self, frm:ttk.Frame):
         super().__init__(frm)
@@ -1189,7 +1228,7 @@ class RecordsView(View):
         self.n_select.grid(row=0,column=0,sticky='news')
         self.n = self.n_select.get_value()
 
-        self.scroll = ValueAdjustor(self, "Scroll", 0, 0, None)
+        self.scroll = ValueAdjustor(self, "Scroll", 0, 0, None, plus_minus_btns=True)
         self.scroll.add_listener(self)
         self.scroll.grid(row=0,column=1,sticky='news')
 
@@ -1205,6 +1244,7 @@ class RecordsView(View):
                 self.groups[time_frame].grid(row=i//2+1,column=i%2,columnspan=2,sticky='news')
             else:
                 self.groups[time_frame].grid(row=(i-1)//2+2,column=(i+1)%2,sticky='news')
+            self.groups[time_frame].placed = True
             i += 1
 
     def attach(self, stats:sc.StatCollector, dates:list[event_date.EventDate], filter) -> None:
@@ -1234,6 +1274,7 @@ class RecordsView(View):
         self.records.detach()
         for group in self.groups.values():
             group.destroy()
+            group.placed = False
         self.groups.clear()
 
     def update_value(self, name, value):
@@ -1246,14 +1287,19 @@ class RecordsView(View):
             self.regrid()
 
     def regrid(self):
+        for group in self.groups.values():
+            if group.placed:
+                group.grid_remove()
+                group.placed = False
         scroll = self.scroll.get_value()
         if scroll > 1:
             scroll = 2*scroll - 1
         i = 0
         for time_frame in self.records.get_time_frames():
             place = i - scroll
+            self.groups[time_frame].placed = True
             if place < 0:
-                pass
+                self.groups[time_frame].placed = False
             elif place == 0 and i == 0:
                 self.groups[time_frame].grid(row=1,column=0,columnspan=2,sticky='news')
             elif place == 0:

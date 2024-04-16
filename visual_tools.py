@@ -303,7 +303,7 @@ UI to adjust a range of values
 """
 class RangeAdjustor(ttk.Frame):
 
-    def __init__(self, frm:ttk.Frame, name:str, low_val:int=0, high_val:int=10, min_val:Union[int,None]=None, max_val:Union[int,None]=None):
+    def __init__(self, frm:ttk.Frame, name:str, low_val:int=0, high_val:int=10, min_val:Union[int,None]=None, max_val:Union[int,None]=None,*,plus_minus_btns=False,jump=1):
         super().__init__(frm, borderwidth=2, relief='sunken')
 
         assert ((min_val is not None and min_val <= low_val and low_val <= high_val) or (min_val is None and low_val <= high_val))  and (max_val is not None and high_val <= max_val or max_val is None)
@@ -320,10 +320,10 @@ class RangeAdjustor(ttk.Frame):
         r = 0
         ttk.Label(self,text=self.name,anchor='c').grid(row=r,column=0,columnspan=2,sticky='news')
         r += 1
-        self.min_adj = ValueAdjustor(self,'min',self.low_val,self.min_val,self.high_val)
+        self.min_adj = ValueAdjustor(self,'min',self.low_val,self.min_val,self.high_val,plus_minus_btns=plus_minus_btns,jump=jump)
         self.min_adj.grid(row=r,column=0,sticky='news')
         self.min_adj.add_listener(self)
-        self.max_adj = ValueAdjustor(self,'max',self.high_val,self.low_val,self.max_val)
+        self.max_adj = ValueAdjustor(self,'max',self.high_val,self.low_val,self.max_val,plus_minus_btns=plus_minus_btns,jump=jump)
         self.max_adj.grid(row=r,column=1,sticky='news')
         self.max_adj.add_listener(self)
 
@@ -374,7 +374,7 @@ UI to adjust a value with an optional min/max
 """
 class ValueAdjustor(ttk.Frame):
     
-    def __init__(self, frm:ttk.Frame, name:str, cur_val:float=0, min_val:Union[float,None]=None, max_val:Union[float,None]=None,*, is_int:bool=True, apply_btn=False) -> None:
+    def __init__(self, frm:ttk.Frame, name:str, cur_val:float=0, min_val:Union[float,None]=None, max_val:Union[float,None]=None,*, is_int:bool=True, apply_btn=False, plus_minus_btns=False,jump=1) -> None:
         super().__init__(frm, borderwidth=2, relief='raised')
 
         assert ((min_val is not None and min_val <= cur_val) or min_val is None) and ((max_val is not None and cur_val <= max_val) or max_val is None)
@@ -396,11 +396,14 @@ class ValueAdjustor(ttk.Frame):
         else:
             self.val = tk.DoubleVar()
         self.val.set(cur_val)
-        ttk.Entry(self,textvariable=self.val).grid(row=r,column=0,sticky='news')
-        ttk.Button(self,text='Update',command=self.update_labels).grid(row=r,column=1)#,sticky='news')
+        ttk.Entry(self,textvariable=self.val).grid(row=r,column=1,sticky='news')
+        ttk.Button(self,text='Update',command=self.update_labels).grid(row=r,column=2)#,sticky='news')
         r+=1
         if self.apply_btn:
             ttk.Button(self,text='Apply',command=self.notify_listeners).grid(row=r,column=0,columnspan=2)
+        if plus_minus_btns:
+            ttk.Button(self,text="+",command=lambda:self.set_value(self.val.get()+jump)).grid(row=2,column=2)
+            ttk.Button(self,text="-",command=lambda:self.set_value(self.val.get()-jump)).grid(row=2,column=1)
 
     def get_value(self):
         return self.val.get()
@@ -781,7 +784,7 @@ class PerformanceGroup(ttk.Frame):
         super().__init__(frm, borderwidth=2, relief='groove')
 
         ttk.Label(self, text=name).grid(row=0,column=0,columnspan=len(groups),sticky='news')
-
+        self.placed = False
         self.n = n_best
         c = 0
         self.performances = dict[str,PerformanceView]()

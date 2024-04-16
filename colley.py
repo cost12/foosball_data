@@ -12,23 +12,26 @@ def get_colley_rankings(games, by_wins = True, weighting = None, as_dict=False) 
 	by = 'W'
 	if not by_wins:
 		by = 'G'
-	return __calculate_values(c,b,players,by,as_dict)
+	return __calculate_values(c,b,players,as_dict,by)
 
 def get_colley_from_df(df,by='W'):
 	players = list(df['Name'].unique())
 	print(players[0])
 	c,b = __matrices_from_df(df,by)
-	return __calculate_values(c,b,players,by)
+	return __calculate_values(c,b,players,False,by)
 	
-def __calculate_values(c,b,players,by,as_dict):
-	diag = c.diagonal() + 2
-	np.fill_diagonal(c, diag)
+def __calculate_values(c,b,players,as_dict,by=None):
+	c2 = np.array(c)
+	b2 = np.array(b)
 
-	for i in range(0,len(b)):
-		b[i] = b[i] / 2
-		b[i] += 1
+	diag = c2.diagonal() + 2
+	np.fill_diagonal(c2, diag)
 
-	r = np.linalg.solve(c, b)
+	for i in range(0,len(b2)):
+		b2[i] = b2[i] / 2
+		b2[i] += 1
+
+	r = np.linalg.solve(c2, b2)
 
 	if as_dict:
 		rankings = {}
@@ -61,7 +64,6 @@ def __matrices_from_df(df, players, by='W'):
 		b[index2] -= val
 	return c,b
 
-
 def __get_matrices(games, players, by_wins = True, weighting = None):
 	if weighting == None:
 		weighting = np.ones(len(games))
@@ -72,29 +74,7 @@ def __get_matrices(games, players, by_wins = True, weighting = None):
 
 	i = 0
 	for game in games:
-		w_index = players.index(game.winner)
-		l_index = players.index(game.loser)
-		w_score = game.winner_score
-		l_score = game.loser_score
-
-		if by_wins:
-			c[w_index][w_index] += weighting[i] # Updating diagonal element
-			c[l_index][l_index] += weighting[i] # Updating diagonal element
-			c[w_index][l_index] -= weighting[i] # Updating off - diagonal element
-			c[l_index][w_index] -= weighting[i] # Updating off - diagonal element
-
-			b[w_index] += weighting[i]
-			b[l_index] -= weighting[i]
-		else:
-			c[w_index][w_index] += (w_score + l_score) * weighting[i] # Updating diagonal element
-			c[l_index][l_index] += (w_score + l_score) * weighting[i] # Updating diagonal element
-			c[w_index][l_index] -= (w_score + l_score) * weighting[i] # Updating off - diagonal element
-			c[l_index][w_index] -= (w_score + l_score) * weighting[i] # Updating off - diagonal element
-
-			b[w_index] += (w_score) * weighting[i]
-			b[l_index] -= (w_score) * weighting[i]
-			b[w_index] -= (l_score) * weighting[i]
-			b[l_index] += (l_score) * weighting[i]
+		update_matrices(game,c,b,players,weighting[i],by_wins)
 		i += 1
 	return c,b
 
@@ -112,21 +92,62 @@ def nice_print(rankings):
 		print("\t" + line)
 
 
-def get_rankings_list(games, xlist, players, is_daily, by_wins) -> dict[str:float]:
+def update_matrices(game,c:np.ndarray,b:np.ndarray,players:list[str],weight:float,by_wins:bool):
+	w_index = players.index(game.winner)
+	l_index = players.index(game.loser)
+	w_score = game.winner_score
+	l_score = game.loser_score
+
+	if by_wins:
+		c[w_index][w_index] += weight # Updating diagonal element
+		c[l_index][l_index] += weight # Updating diagonal element
+		c[w_index][l_index] -= weight # Updating off - diagonal element
+		c[l_index][w_index] -= weight # Updating off - diagonal element
+
+		b[w_index] += weight
+		b[l_index] -= weight
+	else:
+		c[w_index][w_index] += (w_score + l_score) * weight # Updating diagonal element
+		c[l_index][l_index] += (w_score + l_score) * weight # Updating diagonal element
+		c[w_index][l_index] -= (w_score + l_score) * weight # Updating off - diagonal element
+		c[l_index][w_index] -= (w_score + l_score) * weight # Updating off - diagonal element
+
+		b[w_index] += (w_score) * weight
+		b[l_index] -= (w_score) * weight
+		b[w_index] -= (l_score) * weight
+		b[l_index] += (l_score) * weight
+
+def get_rankings_list(games:list, xlist:list, sel_players:list[str], all_players:list[str], is_daily:bool, by_wins:bool,*, day_decay:float=1, game_decay:float=1) -> dict[str:float]:
 	rankings = {}
 
-	for player in players:
+	num_players = len(all_players)
+	c = np.zeros([num_players, num_players])
+	b = np.zeros(num_players)
+
+	for player in sel_players:
 		rankings[player] = [] #np.zeros(len(xlist))
 	
-	for x in xlist:
-		temp = []
-		for game in games:
-			if (is_daily and game.date <= x) or ((not is_daily) and game.number <= x):
-				temp.append(game)
-		temp_ranks = get_colley_rankings(temp, by_wins = by_wins,as_dict=True)
-		for player in players:
+	today = None
+	i = 0
+	g = 0
+	while i < len(xlist):# g < len(games):
+		while g < len(games) and i < len(xlist) and ((is_daily and games[g].date <= xlist[i]) or ((not is_daily) and games[g].number <= xlist[i])):
+			if today is None:
+				days = 0
+			else:
+				days = (games[g].date-today).days
+			decay = game_decay*(day_decay**days)
+			c *= decay
+			b *= decay
+			update_matrices(games[g],c,b,all_players,1,by_wins)
+			today = games[g].date
+			g += 1
+		temp_ranks = __calculate_values(c,b,all_players,True)
+
+		for player in sel_players:
 			if player in temp_ranks.keys():
 				rankings[player].append(temp_ranks[player])
 			else:
 				rankings[player].append(0)
+		i += 1
 	return rankings
