@@ -45,12 +45,15 @@ def visualize_foosball() -> None:
 
     #root = tk.Tk()
     root = ThemedTk(theme="kroc")
-    main_frame = ttk.Frame(root)
+    root.title("Foosball Data Analyzer")
+    #main_frame = ttk.Frame(root)
+    main_frame = ScrollFrame(root)
     main_frame.pack(fill='both',expand=True)
 
     #ttk.Style().theme_use("clam")
 
-    viewControl = StatsViewControl(main_frame,games_options,dates_options)
+    viewControl = StatsViewControl(main_frame.viewPort,games_options,dates_options)
+    viewControl.pack(fill='both',expand=True)
 
     root.mainloop()
 
@@ -116,10 +119,9 @@ class StatsViewControl(ttk.Frame):
 
     def __init__(self,frm:ttk.Frame,games_options:list[utils.SheetIdentifier],dates_options:list[utils.SheetIdentifier]) -> None:
         super().__init__(frm)
-        self.frm=frm
 
         if c.DEBUG_MODE:
-            ttk.Button(frm,text='repack',command=self.repack).pack()
+            ttk.Button(self,text='repack',command=self.repack).pack()
 
         start_screen = str('dataset')
 
@@ -129,16 +131,16 @@ class StatsViewControl(ttk.Frame):
         
         self.view = start_screen
         self.views = dict[str, View] ( \
-                     {#'info':       InfoScreen(frm),
-                      'dataset':     DataSelector(frm, games_options, dates_options),
-                      'filter':      FilterView(frm),
-                      'table':       StatTable(frm),
-                      'sim':         SimView(frm),
-                      'graphs':      GraphView(frm), #TODO: implement these/ come up with more
-                      #'individual': IndividualView(frm),
+                     {#'info':       InfoScreen(self),
+                      'dataset':     DataSelector(self, games_options, dates_options),
+                      'filter':      FilterView(self),
+                      'table':       StatTable(self),
+                      'sim':         SimView(self),
+                      'graphs':      GraphView(self), #TODO: implement these/ come up with more
+                      #'individual': IndividualView(self),
                       #'legends':    [],
-                      'records':     RecordsView(frm),
-                      'tournaments': TournamentView(frm),
+                      'records':     RecordsView(self),
+                      'tournaments': TournamentView(self),
                       #'overview':   [],
                       #'leauges':    [],
                       #'game_entry': [],
@@ -146,13 +148,13 @@ class StatsViewControl(ttk.Frame):
         )
         self.no_game_views = ['dataset', 'filter']
         
-        self.buttons = ButtonGroup(self.frm, "Screens", list(self.views.keys()),selected=start_screen)
+        self.buttons = ButtonGroup(self, "Screens", list(self.views.keys()),selected=start_screen)
         self.buttons.add_listener(self)
         self.buttons.pack()
 
         self.error_text = tk.StringVar()
         self.error_text.set("Welcome!")
-        ttk.Label(self.frm,textvariable=self.error_text).pack()#fill='y',expand=True,side='top')
+        ttk.Label(self,textvariable=self.error_text).pack()#fill='y',expand=True,side='top')
 
         for view in self.views:
             self.views[view].pack(fill='y',expand=True,side='top')
