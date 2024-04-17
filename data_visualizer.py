@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import ttk
+from ttkthemes import ThemedTk
 import pandas as pd
 import matplotlib.pyplot
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -42,11 +43,14 @@ def visualize_foosball() -> None:
         print(e)
         return
 
-    root = tk.Tk()
+    #root = tk.Tk()
+    root = ThemedTk(theme="kroc")
+    main_frame = ttk.Frame(root)
+    main_frame.pack(fill='both',expand=True)
 
-    s = ttk.Style()
+    #ttk.Style().theme_use("clam")
 
-    viewControl = StatsViewControl(root,games_options,dates_options)
+    viewControl = StatsViewControl(main_frame,games_options,dates_options)
 
     root.mainloop()
 
