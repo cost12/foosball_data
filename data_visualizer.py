@@ -4,6 +4,7 @@ from ttkthemes import ThemedTk
 import pandas as pd
 import matplotlib.pyplot
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+#import matplotlib.backends.backend_tkagg as tkagg
 import datetime
 
 import data_read_in
@@ -1209,6 +1210,8 @@ class GraphView(View):
                                                         self.get_x_axis(),
                                                         self.get_y_axis())
         self.graph_display = FigureCanvasTkAgg(self.graph,self)
+        #self.graph_display = tkagg.
+
         self.graph_display.draw()
         self.graph_display.get_tk_widget().grid(row=0,column=2,sticky='news',rowspan=3)
 

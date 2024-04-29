@@ -4,9 +4,8 @@ TODO: (6 done)
 3. Fix exceptions/raises so they only catch and throw specific errors
 4. Change attach so simulator is passed in. This is more complicated b/c of the 2 classes of simulators
 
-Bugs: (8 fixed)
+Bugs: (9 fixed)
 1. Sort takes 2 clicks to work sometimes
-2. View sim probabilities for numbers > 13
 
 Features to Add:
 1. Leagues - standings, schedule, scores

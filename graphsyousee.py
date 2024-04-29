@@ -2,11 +2,14 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
+from mpl_interactions import ioff, panhandler, zoom_factory
+
 """
 Creates and returns a formatted graph
 """
 def create_foosball_graph(name:str, xlabel:str, ylabel:str, players:list[str], xlist:list, rankings:dict[str,list], remove_zeros:bool=True, ignore_players:list[str]=[], scatter:bool=False):
-	fig = plt.figure()
+	with plt.ioff():	
+		fig = plt.figure()
 	plt.title(name)
 	plt.xlabel(xlabel)
 	plt.ylabel(ylabel)
@@ -29,6 +32,8 @@ def create_foosball_graph(name:str, xlabel:str, ylabel:str, players:list[str], x
 			plt.annotate(xy=(new_x[-1], new_y[-1]), xytext=(20,0), textcoords='offset points', text=player, va='center')
 	plt.gca().tick_params(axis='x', labelrotation = 90)
 	fig.tight_layout()
+	disconnect_zoom = zoom_factory(fig.axes[0])
+	pan_handler = panhandler(fig)
 	return fig
 	#fig.savefig("graphs/" + filename)
 
