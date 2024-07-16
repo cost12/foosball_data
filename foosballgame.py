@@ -151,7 +151,7 @@ class FoosballMatchup:
 		                                                          str(self.date.strftime("%m/%d/%Y")), \
 		                                                          self.winner_color)
 
-def get_record(games, p1, color='ANY'):
+def get_record(games:list[FoosballGame], p1:str, color='ANY'):
 	wins = 0
 	losses = 0
 	for game in games:

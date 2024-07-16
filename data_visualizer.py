@@ -137,8 +137,8 @@ class StatsViewControl(ttk.Frame):
                       'filter':      FilterView(self),
                       'table':       StatTable(self),
                       'sim':         SimView(self),
-                      'graphs':      GraphView(self), #TODO: implement these/ come up with more
-                      #'individual': IndividualView(self),
+                      'graphs':      GraphView(self),
+                      'individual': IndividualView(self),
                       #'legends':    [],
                       'records':     RecordsView(self),
                       'tournaments': TournamentView(self),
@@ -1510,10 +1510,11 @@ class TournamentCreatorView(View):
     def update_labels(self) -> None:
         pass
 
-""" TODO: this whole class
-Interaction and visualization for individual achievements
-"""
+
 class IndividualView(View):
+    """ TODO: this whole class
+    Interaction and visualization for individual achievements
+    """
 
     def __init__(self, frm:ttk.Frame):
         super().__init__(frm)
@@ -1525,7 +1526,7 @@ class IndividualView(View):
         ttk.Label(entry_frm,text='Name').grid(row=0,column=0,sticky='news')
         self.player = tk.StringVar()
         ttk.Entry(entry_frm,textvariable=self.player).grid(row=0,column=1,sticky='news')
-        ttk.Button(entry_frm,text='Apply',command=self.update_labels).grid(row=0,column=2,sticky='news')
+        ttk.Button(entry_frm,text='Apply',command=lambda:self.set_player(self.player.get())).grid(row=0,column=2,sticky='news')
 
         stats_frm = ttk.Frame(self)
         stats_frm.grid(row=1,column=0,sticky='news')
@@ -1544,7 +1545,7 @@ class IndividualView(View):
         self.ga.grid(row=1,column=3,sticky='news')
 
     def attach(self, stats, dates, filter) -> None:
-        pass
+        self.individual.stats = stats
 
     def detach(self) -> None:
         pass
@@ -1555,8 +1556,15 @@ class IndividualView(View):
     def reset(self) -> None:
         pass
 
+    def set_player(self, player:str) -> None:
+        self.individual.name = player
+        self.update_labels()
+
     def update_labels(self) -> None:
-        pass
+        self.wins.config(text=self.individual.get_record()[0])
+        self.losses.config(text=self.individual.get_record()[1])
+        self.gf.config(text=self.individual.get_goals()[0])
+        self.ga.config(text=self.individual.get_goals()[1])
 
 def main() -> None:
     visualize_foosball()
