@@ -33,16 +33,12 @@ def visualize_foosball() -> None:
     try:
         games_options = data_read_in.read_in_games_options()
     except Exception as e:
-        print("No options available for games")
-        print(e)
-        return
+        games_options = [utils.SheetIdentifier("Coliseum Foosball","1hdM3dleaHsLLUpqnYBnNgiaK8rx9i-9TK4qdZafdz-0","1v1","data/foosball_data.txt")]
     
     try:
         dates_options = data_read_in.read_in_dates_options()
     except Exception as e:
-        print("No options available for dates")
-        print(e)
-        return
+        dates_options = [utils.SheetIdentifier("Semester Dates","1hdM3dleaHsLLUpqnYBnNgiaK8rx9i-9TK4qdZafdz-0","SemesterDates","data/semester_dates.txt")]
 
     #root = tk.Tk()
     root = ThemedTk(theme="kroc")
