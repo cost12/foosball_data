@@ -1,8 +1,8 @@
 import random
 
-import statcollector as sc
-import foosballgame
-import gamefilter
+import backend.statcollector as sc
+import backend.foosballgame as foosballgame
+import backend.gamefilter as gamefilter
 
 class Tournament:
     """
@@ -64,20 +64,23 @@ class Tournament:
         if not self.started:
             self.round_results.append(list[TournamentRound]())
             for group in self.groups:
-                if self.type == self.SINGLE_ELIMINATION:
-                    round = KnockoutRound(0,group,True)
-                elif self.type == self.ROUND_ROBIN or self.type == self.WORLD_CUP:
-                    round = RoundRobinRound(0,group,True,num_advance=self.rr_num_advance)
+                match self.type:
+                    case self.SINGLE_ELIMINATION:
+                        tournament_round = KnockoutRound(0,group,True)
+                    case self.ROUND_ROBIN | self.WORLD_CUP:
+                        tournament_round = RoundRobinRound(0,group,True,num_advance=self.rr_num_advance)
+                    case _:
+                        tournament_round = RoundRobinRound(0,group,True,num_advance=self.rr_num_advance)
                 self.started = True
-                round.add_listener(self)
-                self.round_results[0].append(round)
+                tournament_round.add_listener(self)
+                self.round_results[0].append(tournament_round)
             return True
         return False
-    
+
     def advance(self) -> bool:
         if self.started:
             if self.round_over() and not self.is_over():
-                id = len(self.round_results)
+                round_number = len(self.round_results)
                 if self.type == self.SINGLE_ELIMINATION:
                     merge_groups = False
                     for group in self.round_results[-1]:
@@ -90,20 +93,20 @@ class Tournament:
                         if merge_groups:
                             players.append(group.advancers())
                         else:
-                            round = KnockoutRound(id,self.players,self.reseeding,group.advancers())
-                            round.add_listener(self)
-                            self.round_results[-1].append(round)
+                            tournament_round = KnockoutRound(round_number,self.players,self.reseeding,group.advancers())
+                            tournament_round.add_listener(self)
+                            self.round_results[-1].append(tournament_round)
                     if merge_groups:
-                        round = KnockoutRound(id,self.players,self.reseeding,players)
-                        round.add_listener(self)
-                        self.round_results[-1].append(round)
+                        tournament_round = KnockoutRound(round_number,self.players,self.reseeding,players)
+                        tournament_round.add_listener(self)
+                        self.round_results[-1].append(tournament_round)
                 elif self.type == self.WORLD_CUP:
                     players = list[str]()
                     for group in self.round_results[-2]:
                         players.append(group.advancers())
-                    round = KnockoutRound(id,self.players,self.reseeding,players)
-                    round.add_listener(self)
-                    self.round_results.append(round)
+                    tournament_round = KnockoutRound(round_number,self.players,self.reseeding,players)
+                    tournament_round.add_listener(self)
+                    self.round_results.append(tournament_round)
                 elif self.type == self.ROUND_ROBIN:
                     merge_groups = False
                     for group in self.round_results[-1]:
@@ -116,16 +119,16 @@ class Tournament:
                         if merge_groups:
                             players.append(group.advancers())
                         else:
-                            round = RoundRobinRound(id,self.players,self.reseeding,group.advancers(),self.rr_num_advance)
-                            round.add_listener(self)
-                            self.round_results[-1].append(round)
+                            tournament_round = RoundRobinRound(round_number,self.players,self.reseeding,group.advancers(),self.rr_num_advance)
+                            tournament_round.add_listener(self)
+                            self.round_results[-1].append(tournament_round)
                     if merge_groups:
-                        round = KnockoutRound(id,self.players,self.reseeding,players,1)
-                        round.add_listener(self)
-                        self.round_results[-1].append(round)
+                        tournament_round = KnockoutRound(round_number,self.players,self.reseeding,players)
+                        tournament_round.add_listener(self)
+                        self.round_results[-1].append(tournament_round)
                 return True
         return False
-    
+
     def update_round(self, id):
         if self.round_over():
             self.notify_listeners()
@@ -139,7 +142,7 @@ class Tournament:
     def notify_listeners(self):
         for listener in self.listeners:
             listener.update_tournament(self.id)
-    
+
     def winner(self):
         if self.is_over():
             return self.round_results[-1][0].advancers()[0]
@@ -153,7 +156,7 @@ class Tournament:
             if len(group.advancers()) > 1:
                 return False
         return True
-    
+
     def round_over(self) -> bool:
         for group in self.round_results[-1]:
             if not group.is_over():
@@ -172,7 +175,7 @@ class Tournament:
                 random.shuffle(self.players)
             elif self.seeding == self.SKILL_SEEDING:
                 if self.attached:
-                    self.players.sort(key=lambda player: self.stats.skill_tracker.get_rating(player), reverse=True)
+                    self.players.sort(key=self.stats.skill_tracker.get_rating, reverse=True)
             self.group_players()
 
     def group_players(self) -> None:
@@ -255,7 +258,7 @@ class TournamentRound:
         assert prev_winners is None or set(prev_winners).issubset(seeded_players)
         assert prev_winners is None or len(prev_winners) > 0
         assert len(seeded_players) > 0
-        
+
         self.seeded_players = seeded_players
 
         if prev_winners is None:
@@ -266,7 +269,7 @@ class TournamentRound:
 
         self.started = False
         self.reseeding = reseeding
-       
+
         self.matchups = list[foosballgame.FoosballMatchup]()
         self.attached = False
         self.stats = None
@@ -283,7 +286,7 @@ class TournamentRound:
 
     def set_matchups(self):
         raise NotImplementedError()
-        
+
     def update_matchup(self, matchup):
         if self.is_over():
             self.notify_listeners()
@@ -293,20 +296,20 @@ class TournamentRound:
             if not matchup.is_over():
                 return False
         return True
-    
+
     def advancers(self) -> list[str]:
         raise NotImplementedError()
-    
+
     def eliminated(self) -> list[str]:
         raise NotImplementedError()
-    
+
     def winners(self) -> list[str]:
         winners = list[str]()
         for matchup in self.matchups:
             if matchup.is_over():
                 winners.append(matchup.winner())
         return winners
-    
+
     def losers(self) -> list[str]:
         losers = list[str]()
         for matchup in self.matchups:
@@ -327,18 +330,15 @@ class TournamentRound:
 
 class KnockoutRound(TournamentRound):
 
-    def __init__(self, id, seeded_players:list[str], reseeding:bool, prev_winners:list[str]=None):
-        super().__init__(id,seeded_players,reseeding,prev_winners)
-
     def set_matchups(self):
         num_players = len(self.round_players)
         pow_2 = 1
-        while((pow_2 << 1) < num_players):
+        while (pow_2 << 1) < num_players:
             pow_2 = pow_2 << 1
         num_to_eliminate = num_players - pow_2
         num_round = 2*num_to_eliminate
         if self.reseeding:
-            self.round_players.sort(key=lambda p: self.seeded_players.index(p))
+            self.round_players.sort(key=self.seeded_players.index)
             start = num_players - num_round
             for i in range(num_round//2):
                 matchup = foosballgame.FoosballMatchup(self.round_players[start+i],self.round_players[-(i+1)],i)
@@ -351,7 +351,7 @@ class KnockoutRound(TournamentRound):
                 matchup.add_listener(self)
                 self.matchups.append(matchup)
         self.bye_players = list(self.round_players[0:start])
-    
+
     def advancers(self) -> list[str]:
         advancers = list[str]()
         advancers.extend(self.bye_players)
@@ -359,14 +359,14 @@ class KnockoutRound(TournamentRound):
             if matchup.is_over():
                 advancers.append(matchup.winner())
         return advancers
-    
+
     def eliminated(self) -> list[str]:
         eliminated = list[str]()
         for matchup in self.matchups:
             if matchup.is_over():
                 eliminated.append(matchup.loser())
         return eliminated
-    
+
 
 class RoundRobinRound(TournamentRound):
 
@@ -382,15 +382,15 @@ class RoundRobinRound(TournamentRound):
                 matchup.add_listener(self)
                 self.matchups.append(matchup)
         random.shuffle(self.matchups)
-    
+
     def advancers(self) -> list[str]:
         if self.is_over():
             return self.get_rank()[:self.num_advance]
-    
+
     def eliminated(self) -> list[str]:
         if self.is_over():
             return self.get_rank()[self.num_advance:]
-        
+
     def get_rank(self):
         rank = list(self.round_players)
         #rank.sort(key = lambda x: self.order_tup(x), reverse=True)
@@ -399,9 +399,8 @@ class RoundRobinRound(TournamentRound):
     def order_tup(self, player):
         stats = self.standings.get_stats('standings')['Name'==player]
         return (stats['W'], stats['GF']-stats['GA'])
-        
+
     def get_rank_dep(self, players:list[str], stats:sc.StatCollector, start:str='W1') -> list[str]:
-        starts = ['W1', 'W2', 'GD1', 'GD2', 'SOV']
         ranking = list[str]()
         buckets = list[list[str]]()
         max_wins = self.standings.get_stats('standings')['W'].max()
@@ -424,17 +423,15 @@ class RoundRobinRound(TournamentRound):
                 filter = gamefilter.GameFilter()
                 filter.winners = list(buckets[i])
                 filter.losers = list(buckets[i])
-                order = self.get_rank(buckets[i],stats.apply_filter(filter),)
+                order = self.get_rank()
                 ranking.extend(order)
         return ranking
-        
+
 
     def tie_breaker(self, player):
         pass
-    
+
     def update_matchup(self, matchup:foosballgame.FoosballMatchup):
         super().update_matchup(matchup)
         if matchup.is_over():
             self.standings.add_game(matchup)
-
-    

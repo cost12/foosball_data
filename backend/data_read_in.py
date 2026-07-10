@@ -1,10 +1,10 @@
 import pandas as pd
 import datetime
 
-import foosballgame
-import event_date
-import utils
-import constants as c
+import backend.foosballgame as foosballgame
+import backend.event_date as event_date
+import backend.utils as utils
+import constants
 
 SHEET_ID = '1hdM3dleaHsLLUpqnYBnNgiaK8rx9i-9TK4qdZafdz-0'
 GAME_SHEET = '1v1'
@@ -24,11 +24,11 @@ def read_in_dates_from_sheets(sheets=SHEET_ID, sheet_name = DATE_SHEET, copy_to_
     # need to catch format errors, url not found errors
     """
     except FileNotFoundError as fnf: # url isn't found
-        if c.DEBUG_MODE:
+        if constants.DEBUG_MODE:
             print(fnf)
         raise FileNotFoundError(fnf)
     except Exception as e:           # url is found, but file isn't formatted correctly
-        if c.DEBUG_MODE:
+        if constants.DEBUG_MODE:
             print(e)
         raise ValueError(e)
     except Exception as e:
@@ -47,11 +47,11 @@ def read_in_dates_from_csv(filename=DATE_FILENAME):
     return read_df_to_dates(date_df)
     """
     except FileNotFoundError as fnf: # url isn't found
-        if c.DEBUG_MODE:
+        if constants.DEBUG_MODE:
             print(fnf)
         raise FileNotFoundError(fnf)
     except Exception as e:           # url is found, but file isn't formatted correctly
-        if c.DEBUG_MODE:
+        if constants.DEBUG_MODE:
             print(e)
         raise ValueError(e)
     except Exception as e:
@@ -68,11 +68,11 @@ def read_in_games_from_sheets(sheets=SHEET_ID, sheet_name = GAME_SHEET, copy_to_
     games = read_df_to_games(game_df)
     """
     except FileNotFoundError as fnf: # url isn't found
-        if c.DEBUG_MODE:
+        if constants.DEBUG_MODE:
             print(fnf)
         raise FileNotFoundError(fnf)
     except Exception as e:           # url is found, but file isn't formatted correctly
-        if c.DEBUG_MODE:
+        if constants.DEBUG_MODE:
             print(e)
         raise ValueError(e)
     except Exception as e:
@@ -83,7 +83,7 @@ def read_in_games_from_sheets(sheets=SHEET_ID, sheet_name = GAME_SHEET, copy_to_
     if copy_to_csv:
         game_df.to_csv(filename,index=False)
     return games
-    
+
 def read_in_games_from_csv(filename=GAME_FILENAME):
     #try:
     game_df = pd.read_csv(filename)
@@ -91,11 +91,11 @@ def read_in_games_from_csv(filename=GAME_FILENAME):
     return read_df_to_games(game_df)
     """
     except FileNotFoundError as fnf: # url isn't found
-        if c.DEBUG_MODE:
+        if constants.DEBUG_MODE:
             print(fnf)
         raise FileNotFoundError(fnf)
     except Exception as e:           # url is found, but file isn't formatted correctly
-        if c.DEBUG_MODE:
+        if constants.DEBUG_MODE:
             print(e)
         raise ValueError(e)
     except Exception as e:
@@ -103,7 +103,7 @@ def read_in_games_from_csv(filename=GAME_FILENAME):
         print(e)
         return None
     """
-    
+
 def read_in_games_options(filename=GAME_OPTIONS_FILENAME) -> list[utils.SheetIdentifier]:
     #try:
     options_df = pd.read_csv(filename)
@@ -117,11 +117,11 @@ def read_in_games_options(filename=GAME_OPTIONS_FILENAME) -> list[utils.SheetIde
     return options_lis
     """
     except FileNotFoundError as fnf: # url isn't found
-        if c.DEBUG_MODE:
+        if constants.DEBUG_MODE:
             print(fnf)
         raise FileNotFoundError(fnf)
     except Exception as e:           # url is found, but file isn't formatted correctly
-        if c.DEBUG_MODE:
+        if constants.DEBUG_MODE:
             print(e)
         raise ValueError(e)
     except Exception as e:
@@ -129,7 +129,7 @@ def read_in_games_options(filename=GAME_OPTIONS_FILENAME) -> list[utils.SheetIde
         print(e)
         return None
     """
-    
+
 def read_in_dates_options(filename=DATE_OPTIONS_FILENAME) -> list[utils.SheetIdentifier]:
     return read_in_games_options(filename)
 

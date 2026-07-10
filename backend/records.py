@@ -1,8 +1,9 @@
-import statcollector as sc
-import event_date
-
 import datetime
+
 import pandas as pd
+
+import backend.statcollector as sc
+import backend.event_date as event_date
 
 class TimeFrame:
 
@@ -26,7 +27,7 @@ class TimeFrame:
 
     def is_all(self) -> bool:
         return self.type.lower() == 'all'
-    
+
     def get_string(self) -> str:
         if self.is_day() and not self.name == 'day':
             return self.name + ' day'
@@ -46,26 +47,12 @@ class Performance:
 
     def is_across_dates(self):
         return self.to_date is not None and not self.on_date == self.to_date
-    
+
     def has_date(self):
         return self.on_date is not None
-    
+
     def has_semester(self):
         return self.semester is not None
-
-"""
-Records to keep:
-- wins
-- goals
-- games
-- win streak
-
-Timeframes:
-- all time
-- filtered
-- semester
-- day
-"""
 
 class Records:
 
@@ -79,7 +66,7 @@ class Records:
 
     def get_categories(self):
         return list(self.categories.keys())
-    
+
     def get_time_frames(self):
         return self.time_frames
 
@@ -104,13 +91,13 @@ class Records:
             elif time_frame.is_day():
                 stats = self.stats.get_stats('games')
                 semester = time_frame.name
-                stats['Filter'] = stats['Date'].apply(lambda date: self.semesters[semester].contains_date(date))
+                stats['Filter'] = stats['Date'].apply(self.semesters[semester].contains_date)
                 stats = stats[stats['Filter']==True]
             elif time_frame.is_semester():
                 stats = self.stats.get_stats('games')
                 semester = time_frame.name
                 stats['Semester'] = stats['Date'].apply(lambda date: event_date.get_event(date,list(self.semesters.values())).name)
-                stats['Filter'] = stats['Date'].apply(lambda date: self.semesters[semester].contains_date(date))
+                stats['Filter'] = stats['Date'].apply(self.semesters[semester].contains_date)
                 stats = stats[stats['Filter']==True]
 
             if not time_frame.is_all():
@@ -122,7 +109,7 @@ class Records:
                         if time_frame.is_day():
                             performances.append(Performance(category,time_frame,best.iloc[i]['Winner'],best.iloc[i][self.categories[category]],on_date=best.iloc[i][time_frame.selector()]))
                         else: # Semester
-                            #best['First'] = 
+                            #best['First'] =
                             performances.append(Performance(category,time_frame,best.iloc[i]['Winner'],best.iloc[i][self.categories[category]],semester=best.iloc[i][time_frame.selector()]))
                     return performances
                 elif category == 'goals':
@@ -162,7 +149,6 @@ class Records:
                 elif category == 'win streak':
                     return self.__get_top_win_streaks(stats, time_frame, n)
         return []
-    
 
     def __get_top_win_streaks(self, stats:pd.DataFrame, time_frame:TimeFrame, n:int):
         cutoff = 0
@@ -215,7 +201,7 @@ class Records:
                 counts[winner] = Performance('win streak',time_frame,winner,1,on_date=date,to_date=date)
         self.__update_performances(performances,counts,n,cutoff)
         return performances
-    
+
     def __update_performances(self, performances:list[Performance], counts:dict[str,Performance], n:int, cutoff:int) -> int:
         for name in counts.keys():
             if counts[name].result == cutoff:

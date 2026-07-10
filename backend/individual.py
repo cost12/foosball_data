@@ -1,5 +1,5 @@
-import statcollector as sc
-import foosballgame
+import backend.statcollector as sc
+import backend.foosballgame as foosballgame
 
 class IndividualStats():
 
@@ -24,4 +24,3 @@ class IndividualStats():
 
     def get_closest_opponent(self):
         pass
-

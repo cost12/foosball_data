@@ -1,3 +1,4 @@
+from urllib.error import URLError
 import tkinter as tk
 from tkinter import ttk
 from ttkthemes import ThemedTk
@@ -5,63 +6,54 @@ import pandas as pd
 import matplotlib.pyplot
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 #import matplotlib.backends.backend_tkagg as tkagg
-import datetime
 
-import data_read_in
-import statcollector as sc
-import event_date
-import gamefilter
-import graphsyousee
-import foosballgame
-import colley
-import elo
-import myranks
-import individual
-import utils
-import simulator
-from visual_tools import *
-import constants as c
-import records
-import tournament
+import backend.data_read_in as data_read_in
+import backend.statcollector as sc
+import backend.event_date as event_date
+import backend.gamefilter as gamefilter
+import backend.graphsyousee as graphsyousee
+import backend.colley as colley
+import backend.elo as elo
+import backend.myranks as myranks
+import backend.individual as individual
+import backend.utils as utils
+import backend.simulator as simulator
+import backend.records as records
+import backend.tournament as tournament
+import frontend.visual_tools as visual_tools
+import constants
 
-from urllib.error import URLError
 
-"""
-Main loop for tkinter
-"""
 def visualize_foosball() -> None:
     try:
         games_options = data_read_in.read_in_games_options()
-    except Exception as e:
+    except Exception:
         games_options = [utils.SheetIdentifier("Coliseum Foosball","1hdM3dleaHsLLUpqnYBnNgiaK8rx9i-9TK4qdZafdz-0","1v1","data/foosball_data.txt")]
-    
+
     try:
         dates_options = data_read_in.read_in_dates_options()
-    except Exception as e:
+    except Exception:
         dates_options = [utils.SheetIdentifier("Semester Dates","1hdM3dleaHsLLUpqnYBnNgiaK8rx9i-9TK4qdZafdz-0","SemesterDates","data/semester_dates.txt")]
 
     #root = tk.Tk()
-    root = ThemedTk(theme="kroc")
+    root = ThemedTk(theme="clam")
     root.title("Foosball Data Analyzer")
     #main_frame = ttk.Frame(root)
-    main_frame = ScrollFrame(root)
+    main_frame = visual_tools.ScrollFrame(root)
     main_frame.pack(fill='both',expand=True)
 
     #ttk.Style().theme_use("clam")
 
-    viewControl = StatsViewControl(main_frame.viewPort,games_options,dates_options)
-    viewControl.pack(fill='both',expand=True)
+    view_control = StatsViewControl(main_frame.viewPort,games_options,dates_options)
+    view_control.pack(fill='both',expand=True)
 
     root.mainloop()
 
-"""
-Super class for all views/screens
-"""
 class View(ttk.Frame):
 
     def __init__(self, frm:ttk.Frame, *, __s:sc.StatCollector=None, __d:list[utils.SheetIdentifier]=None, __f:gamefilter.GameFilter=None):
         super().__init__(frm, borderwidth=2, relief='groove')
-        
+
         self.frm = frm
         self.attached = False
 
@@ -70,54 +62,52 @@ class View(ttk.Frame):
         self.dates = __d
         self.filter = __f
 
-
-    """
-    View attaches to the stats and dates passed in, updates it's values according to stats and dates
-    """
     def attach(self, stats, dates, filter) -> None:
+        """
+        View attaches to the stats and dates passed in, updates it's values according to stats and dates
+        """
         raise NotImplementedError()
 
-    """
-    View detaches from stats and dates and will no longer reflect changes stats or dates
-    """
     def detach(self) -> None:
+        """
+        View detaches from stats and dates and will no longer reflect changes stats or dates
+        """
         raise NotImplementedError()
 
-    """
-    Should update labels/check stats for any changes
-    """
     def reset(self) -> None:
+        """
+        Should update labels/check stats for any changes
+        """
         raise NotImplementedError()
 
-    """
-    Updates the labels to reflect changes to stats or dates
-    """
     def update_labels(self) -> None:
+        """
+        Updates the labels to reflect changes to stats or dates
+        """
         raise NotImplementedError()
-    
-    """
-    Determines wether the view has completed all necessary actions to allow a change of screens
-    """
+
     def ready_to_leave(self) -> bool:
+        """
+        Determines wether the view has completed all necessary actions to allow a change of screens
+        """
         return True
 
-"""
-Decides which frames are displayed
-
-Attaches and detaches views from stats and dates, sometimes has to update stats and dates
-
-Displays to add
- - records
- - leagues
- - individual
- - news/legends
-"""
 class StatsViewControl(ttk.Frame):
+    """
+    Decides which frames are displayed
 
+    Attaches and detaches views from stats and dates, sometimes has to update stats and dates
+
+    Displays to add
+    - records
+    - leagues
+    - individual
+    - news/legends
+    """
     def __init__(self,frm:ttk.Frame,games_options:list[utils.SheetIdentifier],dates_options:list[utils.SheetIdentifier]) -> None:
         super().__init__(frm)
 
-        if c.DEBUG_MODE:
+        if constants.DEBUG_MODE:
             ttk.Button(self,text='repack',command=self.repack).pack()
 
         start_screen = str('dataset')
@@ -125,27 +115,26 @@ class StatsViewControl(ttk.Frame):
         self.stats = sc.StatCollector([])
         self.dates = list[event_date.EventDate]()
         self.filter = gamefilter.GameFilter()
-        
+
         self.view = start_screen
-        self.views = dict[str, View] ( \
-                     {#'info':       InfoScreen(self),
-                      'dataset':     DataSelector(self, games_options, dates_options),
-                      'filter':      FilterView(self),
-                      'table':       StatTable(self),
-                      'sim':         SimView(self),
-                      'graphs':      GraphView(self),
-                      'individual': IndividualView(self),
-                      #'legends':    [],
-                      'records':     RecordsView(self),
-                      'tournaments': TournamentView(self),
-                      #'overview':   [],
-                      #'leauges':    [],
-                      #'game_entry': [],
-                      } \
-        )
+        self.views : dict[str, View] = {
+            #'info':       InfoScreen(self),
+            'dataset':     DataSelector(self, games_options, dates_options),
+            'filter':      FilterView(self),
+            'table':       StatTable(self),
+            'sim':         SimView(self),
+            'graphs':      GraphView(self),
+            'individual': IndividualView(self),
+            #'legends':    [],
+            'records':     RecordsView(self),
+            'tournaments': TournamentView(self),
+            #'overview':   [],
+            #'leauges':    [],
+            #'game_entry': [],
+        }
         self.no_game_views = ['dataset', 'filter']
-        
-        self.buttons = ButtonGroup(self, "Screens", list(self.views.keys()),selected=start_screen)
+
+        self.buttons = visual_tools.ButtonGroup(self, "Screens", list(self.views.keys()),selected=start_screen)
         self.buttons.add_listener(self)
         self.buttons.pack()
 
@@ -153,24 +142,24 @@ class StatsViewControl(ttk.Frame):
         self.error_text.set("Welcome!")
         ttk.Label(self,textvariable=self.error_text).pack()#fill='y',expand=True,side='top')
 
-        for view in self.views:
-            self.views[view].pack(fill='y',expand=True,side='top')
-        for view in self.views:
-            if not view == start_screen:
-                self.views[view].forget()
-        self.views[start_screen].attach(self.stats, self.dates, self.filter)  
+        for view in self.views.values():
+            view.pack(fill='y',expand=True,side='top')
+        for name, view in self.views.items():
+            if not name == start_screen:
+                view.forget()
+        self.views[start_screen].attach(self.stats, self.dates, self.filter)
 
-    """
-    Called by the buttons to change the screen
-    """
     def update_value(self, name, value):
+        """
+        Called by the buttons to change the screen
+        """
         if name == 'Screens':
             self.change_view(value)
 
-    """
-    Change from one frame to another
-    """
     def change_view(self,view:str) -> None:
+        """
+        Change from one frame to another
+        """
         if len(self.stats.filtered) == 0 and view not in self.no_game_views:
             self.error_text.set("Error: No games selected")
             self.buttons.set_highlight(self.view)
@@ -190,14 +179,14 @@ class StatsViewControl(ttk.Frame):
     def repack(self):
         self.views[self.view].pack(fill='both',expand=True,side='top')
 
-"""
-Select which datasets will be loaded and used
-"""
 class DataSelector(View):
+    """
+    Select which datasets will be loaded and used
+    """
 
     def __init__(self, frm:ttk.Frame, games_options:list[utils.SheetIdentifier], dates_options:list[utils.SheetIdentifier]):
         super().__init__(frm)
-    
+
         self.games_dict = dict[str,utils.SheetIdentifier]()
         for option in games_options:
             self.games_dict[option.name] = option
@@ -209,11 +198,11 @@ class DataSelector(View):
         self.first_games = games_options[0].name
         self.first_dates = dates_options[0].name
 
-        self.games_select = SingleSelector(self, 'Games Selection', [x.name for x in games_options], apply_btn=True)
+        self.games_select = visual_tools.SingleSelector(self, 'Games Selection', [x.name for x in games_options], apply_btn=True)
         self.games_select.add_listener(self)
         self.games_select.grid(row=0,column=0,sticky='news')
 
-        self.dates_select = SingleSelector(self, 'Dates Selection', [x.name for x in dates_options], apply_btn=True)
+        self.dates_select = visual_tools.SingleSelector(self, 'Dates Selection', [x.name for x in dates_options], apply_btn=True)
         self.dates_select.add_listener(self)
         self.dates_select.grid(row=0,column=1,sticky='news')
 
@@ -221,8 +210,8 @@ class DataSelector(View):
         self.error_text.set("Waiting for a place to load data... you probably shouldn't see this")
         ttk.Label(self,textvariable=self.error_text).grid(row=1,column=0,columnspan=2,sticky='news')
 
-        self.selected_games = LabeledValue(self, 'Game Dataset In Use')
-        self.selected_dates = LabeledValue(self, 'Date Dataset In Use')
+        self.selected_games = visual_tools.LabeledValue(self, 'Game Dataset In Use')
+        self.selected_dates = visual_tools.LabeledValue(self, 'Date Dataset In Use')
 
         self.selected_games.grid(row=2,column=0,sticky='news')
         self.selected_dates.grid(row=2,column=1,sticky='news')
@@ -233,13 +222,13 @@ class DataSelector(View):
     def ready_to_leave(self) -> bool:
         return self.games_picked and self.dates_picked
 
-    """
-    Updates the current selection of data/ dates
-    """
     def update_value(self, name, value):
+        """
+        Updates the current selection of data/ dates
+        """
         if not self.attached:
             return
-        
+
         # need a loading screen here
 
         success = True
@@ -250,10 +239,10 @@ class DataSelector(View):
             try:
                 dates = data_read_in.read_in_dates_from_sheets(sheet.id, sheet.sheet_name)
                 self.error_text.set('Date file loaded successfully')
-            except URLError as fnf:
+            except URLError:
                 date_fnf = True
                 self.error_text.set('Date file not found, looking for csv instead...')
-            except ValueError as ve:
+            except ValueError:
                 date_bad_format = True
                 self.error_text.set('Date file has incorrect format, loading from csv instead...')
             finally:
@@ -261,10 +250,10 @@ class DataSelector(View):
                     try:
                         dates = data_read_in.read_in_dates_from_csv(sheet.csv_name)
                         self.error_text.set(self.error_text.get() + '\ncsv loaded successfully')
-                    except FileNotFoundError as fnf:
+                    except FileNotFoundError:
                         success = False
                         self.error_text.set(self.error_text.get() + '\ncsv not found, data load unsuccessful')
-                    except ValueError as ve:
+                    except ValueError:
                         success = False
                         self.error_text.set(self.error_text.get() + '\ncsv has incorrect format, data load unsuccessful')
             if success:
@@ -282,10 +271,10 @@ class DataSelector(View):
             try:
                 games = data_read_in.read_in_games_from_sheets(sheet.id, sheet.sheet_name)
                 self.error_text.set('Game file loaded successfully')
-            except URLError as fnf:
+            except URLError:
                 game_fnf = True
                 self.error_text.set('Game file not found, looking for csv instead...')
-            except ValueError as ve:
+            except ValueError:
                 game_bad_format = True
                 self.error_text.set('Game file has incorrect format, loading from csv instead...')
             finally:
@@ -295,12 +284,10 @@ class DataSelector(View):
                         self.error_text.set(self.error_text.get() + '\ncsv loaded successfully')
                     except FileNotFoundError as fnf:
                         print(fnf)
-                        game_csv_fnf = True
                         self.error_text.set(self.error_text.get() + '\ncsv not found, data load unsuccessful')
                         success = False
                     except ValueError as ve:
                         print(ve)
-                        game_csv_bad_format = True
                         self.error_text.set(self.error_text.get() + '\ncsv has incorrect format, data load unsuccessful')
                         success = False
             if success:
@@ -313,7 +300,7 @@ class DataSelector(View):
                 self.selected_games.set_value(selected_txt)
 
         # exit loading screen
-        
+
 
     def attach(self, stats:sc.StatCollector, dates:list[event_date.EventDate], filter:gamefilter.GameFilter):
         if not self.attached:
@@ -334,23 +321,22 @@ class DataSelector(View):
         self.stats = None
         self.dates = None
         self.filter = None
-    
-    """
-    Should update labels/check stats for any changes
-    """
+
     def reset(self) -> None:
-        pass
+        """
+        Should update labels/check stats for any changes
+        """
 
     def update_labels(self) -> None:
         pass
 
-"""
-Interaction and visulization for Simulator
-"""
 class SimView(View):
+    """
+    Interaction and visulization for Simulator
+    """
 
     def __init__(self,frm:ttk.Frame,*,p1:str='',p2:str='') -> None:
-        super().__init__(frm)        
+        super().__init__(frm)
 
         self.show_probs = True
 
@@ -361,12 +347,12 @@ class SimView(View):
 
         top_frm = ttk.Frame(self)
 
-        self.selector = SingleSelector(top_frm,'Simulation Type',['Probability','Skill', 'ELO'], selected='Probability')
+        self.selector = visual_tools.SingleSelector(top_frm,'Simulation Type',['Probability','Skill', 'ELO'], selected='Probability')
         self.selector.add_listener(self)
         self.selector.grid(row=0,column=0,sticky='news')
         self.is_skill = False
 
-        self.goal_points = ValueAdjustor(top_frm, 'Goals to Win', 10, 1, None, plus_minus_btns=True)
+        self.goal_points = visual_tools.ValueAdjustor(top_frm, 'Goals to Win', 10, 1, None, plus_minus_btns=True)
         self.goal_points.add_listener(self)
         self.goal_points.grid(row=0,column=1,sticky='news')
 
@@ -511,10 +497,10 @@ class SimView(View):
 
         self.simulator.detach()
 
-    """
-    Resets the simulator
-    """
     def reset(self) -> None: # TODO: there must be a better way to do this
+        """
+        Resets the simulator
+        """
         self.simulator = simulator.get_simulator(self.player1.get(),self.player2.get(),self.selector.get_selected())
         self.simulator.attach(self.stats)
         self.goal_points.set_value(10)
@@ -533,40 +519,28 @@ class SimView(View):
             else:
                 self.goal_points.set_value(self.simulator.game_to(),False)
 
-    """
-    Simulate a goal
-    """
     def sim_goal(self) -> None:
         self.simulator.simulate_goal()
         self.update_labels()
 
-    """
-    Simulate the game
-    """
     def sim_game(self) -> None:
         self.simulator.simulate_game()
         self.update_labels()
 
-    """
-    Add a goal to a specified player's score
-    """
     def add_goal(self,player:str) -> None:
         self.simulator.add_goal(player)
         self.update_labels()
 
-    """
-    Updates the labels with new information from the simulation
-    """
     def update_labels(self) -> None:
         self.score_num1.config(text=self.simulator.p1_score())
         self.score_num2.config(text=self.simulator.p2_score())
-        text = '{:>.3f}%'.format(self.simulator.get_p1_win_odds()*100)
+        text = f'{self.simulator.get_p1_win_odds()*100:>.3f}%'
         self.win_prob_num1.config(text=text)
-        text = '{:>.3f}%'.format((1-self.simulator.get_p1_win_odds())*100)
+        text = f'{(1-self.simulator.get_p1_win_odds())*100:>.3f}%'
         self.win_prob_num2.config(text=text)
-        text = '{:>.3f}'.format(self.simulator.get_expected_score(self.simulator.p1()))
+        text = f'{self.simulator.get_expected_score(self.simulator.p1()):>.3f}'
         self.exp_score_num1.config(text=text)
-        text = '{:>.3f}'.format(self.simulator.get_expected_score(self.simulator.p2()))
+        text = f'{self.simulator.get_expected_score(self.simulator.p2()):>.3f}'
         self.exp_score_num2.config(text=text)
         self.prob_score_num1.config(text=self.simulator.get_most_probable_score(self.simulator.p1()))
         self.prob_score_num2.config(text=self.simulator.get_most_probable_score(self.simulator.p2()))
@@ -580,18 +554,18 @@ class SimView(View):
             rows_used = self.simulator.game_to()+1
             for i in range(0,rows_used):
                 if i < len(self.score_lbls_num):
-                    text = '{:>.3f}'.format(self.simulator.get_prob_of_score(self.simulator.p1(),i)*100)
+                    text = f'{self.simulator.get_prob_of_score(self.simulator.p1(),i)*100:>.3f}'
                     self.score_lbls_p1[i].config(text=text)
-                    text = '{:>.3f}'.format(self.simulator.get_prob_of_score(self.simulator.p2(),i)*100)
+                    text = f'{self.simulator.get_prob_of_score(self.simulator.p2(),i)*100:>.3f}'
                     self.score_lbls_p2[i].config(text=text)
                 else:
                     r = self.row_count+i+1
-                    text = '{:>.3f}'.format(self.simulator.get_prob_of_score(self.simulator.p1(),i)*100)
+                    text = f'{self.simulator.get_prob_of_score(self.simulator.p1(),i)*100:>.3f}'
                     p1_lbl = ttk.Label(self, text=text, anchor='e')
                     p1_lbl.grid(row=r,column=0,sticky='news')
                     num_lbl = ttk.Label(self,text=i,anchor='c')
                     num_lbl.grid(row=r,column=1,sticky='news')
-                    text = '{:>.3f}'.format(self.simulator.get_prob_of_score(self.simulator.p2(),i)*100)
+                    text = f'{self.simulator.get_prob_of_score(self.simulator.p2(),i)*100:>.3f}'
                     p2_lbl = ttk.Label(self, text=text, anchor='w')
                     p2_lbl.grid(row=r,column=2,sticky='news')
 
@@ -623,28 +597,27 @@ class SimView(View):
         self.score_lbls_p1 = self.score_lbls_p1[0:rows_used]
         self.score_lbls_num= self.score_lbls_num[0:rows_used]
         self.score_lbls_p2 = self.score_lbls_p2[0:rows_used]
-            
-"""
-Interaction and visualization for StatCollector
-"""
-class StatTable(View):
 
-    def __init__(self, frm:ttk.Frame, rmax:int=25, sort:list[str]=['W PCT'], asc:bool=False, view:str='standings') -> None:
+class StatTable(View):
+    """
+    Interaction and visualization for StatCollector
+    """
+    def __init__(self, frm:ttk.Frame, rmax:int=25, sort:list[str]=None, asc:bool=False, view:str='standings') -> None:
         super().__init__(frm)
-                
-        self.sort = sort
+
+        self.sort = sort if sort is not None else ["W PCT"]
         self.ascending = asc
         self.view = view
         self.max_rows = rmax
         self.start_row = 0
         self.num_rows = 0
-        
+
         self.highlight = 'white'
         self.background = 'gray'
 
         self.labels = list[list[ttk.Label]]()
         self.buttons = list[ttk.Button]()
-        self.view_btns = ButtonGroup(self, 'Views')
+        self.view_btns = visual_tools.ButtonGroup(self, 'Views')
         self.view_btns.add_listener(self)
         self.end_btns = list[ttk.Button]()
 
@@ -693,17 +666,17 @@ class StatTable(View):
             lis.clear()
         self.labels.clear()
 
-    """
-    Called to update labels quickly
-    """
     def reset(self) -> None:
+        """
+        Called to update labels quickly
+        """
         self.start_row = 0
         self.update_labels()
 
-    """ TODO: error because sometimes the gap between prev and the previous thing does not exist
-    Update the table values without having to delete/ redraw
-    """
     def update_labels(self) -> None:
+        """ TODO: error because sometimes the gap between prev and the previous thing does not exist
+        Update the table values without having to delete/ redraw
+        """
         if not self.attached:
             return
         # get the data
@@ -713,8 +686,9 @@ class StatTable(View):
         self.num_rows = min(data.shape[0]-self.start_row,self.max_rows)
 
         # create the buttons on the top row
-        for c in range(len(data.columns)):
-            header = data.columns[c]
+        c = 0
+        for c, column in enumerate(data.columns):
+            header = column
             if c < len(self.buttons):
                 self.buttons[c].config(text=header,command=self.__sort_call(header))
             else:
@@ -726,7 +700,7 @@ class StatTable(View):
         len_btns = c+1                   # the number of current buttons
         if len(self.buttons) > len_btns: # max(current buttons, prev buttons) > current buttons (there are an excess that need to be removed)
             # delete labels
-            for r in range(len(self.labels)):
+            for r, _ in enumerate(self.labels):
                 for c in range(len_btns,len(self.buttons)):
                     self.labels[r][c+1].destroy() # +1 because of number labels
                 self.labels[r] = self.labels[r][:c+1]
@@ -750,12 +724,12 @@ class StatTable(View):
                 background = self.background
                 if len(self.sort) > 0 and self.sort[0] == data.columns[c]:
                     background = self.highlight
-                text = data.iloc[r+self.start_row][c]
+                text = data.iloc[r+self.start_row].iloc[c]
                 anchor = 'e'
                 if isinstance(text,str):
                     anchor = 'w'
                 if isinstance(text,float):
-                    text = '{:>.3f}'.format(text)
+                    text = f'{text:>.3f}'
                 if r < prev_rows and c < prev_cols:
                     self.labels[r][c+1].config(text=text,background=background,anchor=anchor)
                 else:
@@ -777,46 +751,33 @@ class StatTable(View):
                 btn.grid(row=self.num_rows+2,column=c,sticky='news')
                 c += 1
 
-    """
-    Advance to the next page/ see more stats
-    """
     def next_page(self) -> None:
         if self.num_rows >= self.max_rows:
             self.start_row += self.max_rows
             self.update_labels()
 
-    """
-    Go back to the previous page
-    """
     def prev_page(self) -> None:
         if self.start_row > 0:
             self.start_row = max(self.start_row-self.max_rows,0)
             self.update_labels()
 
-    """
-    Get data from the StatCollector and store it so it can be displayed
-    """
     def get_data(self) -> pd.DataFrame:
         data = self.stats.get_stats(self.view)
         for s in self.sort:
             if s not in data.columns:
                 self.sort.remove(s)
-                if c.DEBUG_MODE:
+                if constants.DEBUG_MODE:
                     print("removed " + s)
         if len(self.sort)>0:
             try:
                 data = data.sort_values(by=self.sort, ascending=self.ascending)
             except:
-                if c.DEBUG_MODE:
+                if constants.DEBUG_MODE:
                     print(data.columns)
                     print(self.sort)
                     print("")
         return data
 
-    """
-    Sets the main sort to be n and the direction is decided by ascending
-    Calls reset so that the data is displayed as sorted
-    """
     def sort_by(self, n:str, ascending:bool=None) -> None:
         if n in self.sort:
             self.sort.remove(n)
@@ -825,29 +786,25 @@ class StatTable(View):
             self.ascending = ascending
         self.reset()
 
-    """
-    This is called when a button is clicked to sort the data
-    Returns a lambda function that calls sort_by and passes in n and the correct direction
-    """
     def __sort_call(self, n:str): # TODO: figure out how to type hint this
+        """
+        This is called when a button is clicked to sort the data
+        Returns a lambda function that calls sort_by and passes in n and the correct direction
+        """
         ascending = self.ascending
         if len(self.sort) > 0 and self.sort[0] == n:
             ascending = not self.ascending
         return lambda:self.sort_by(n,ascending)
 
-    """
-    Change the view to a different stat category
-    """
     def set_view(self, view:str) -> None:
         if self.view != view:
             self.view = view
             self.reset()
 
-"""
-Interaction and visualization for a filter
-"""
 class FilterView(View):
-
+    """
+    Interaction and visualization for a filter
+    """
     def __init__(self, frm:ttk.Frame) -> None:
         super().__init__(frm)
 
@@ -857,35 +814,35 @@ class FilterView(View):
         self.count_text.set('(0 games selected)')
         ttk.Label(self, textvariable=self.count_text).grid(row=0,column=0,columnspan=4,sticky='news')
 
-        self.winner_select = MultiSelector(self, 'Winner Select')
+        self.winner_select = visual_tools.MultiSelector(self, 'Winner Select')
         self.winner_select.add_listener(self)
         self.winner_select.grid(row=1,column=0,rowspan=4,sticky='news')
 
-        self.loser_select = MultiSelector(self, 'Loser Select')
+        self.loser_select = visual_tools.MultiSelector(self, 'Loser Select')
         self.loser_select.add_listener(self)
         self.loser_select.grid(row=1,column=1,rowspan=4,sticky='news')
 
-        self.restrict_select = SingleSelector(self, 'Select Type', ['restricted','open','single'], selected='restricted')
+        self.restrict_select = visual_tools.SingleSelector(self, 'Select Type', ['restricted','open','single'], selected='restricted')
         self.restrict_select.add_listener(self)
         self.restrict_select.grid(row=5,column=0,columnspan=1,sticky='news')
 
-        self.winner_color_select = MultiSelector(self, 'Winner Color', ['B','W'])
+        self.winner_color_select = visual_tools.MultiSelector(self, 'Winner Color', ['B','W'])
         self.winner_color_select.add_listener(self)
         self.winner_color_select.grid(row=5,column=1,columnspan=1,sticky='news')
 
-        self.event_select = MultiSelector(self, 'Event Select')
+        self.event_select = visual_tools.MultiSelector(self, 'Event Select')
         self.event_select.add_listener(self)
         self.event_select.grid(row=1,column=2,rowspan=2,sticky='news')
 
-        self.day_select = MultiSelector(self, 'Day Select', ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday','Sunday'], sorted=False)
+        self.day_select = visual_tools.MultiSelector(self, 'Day Select', ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday','Sunday'], sorted=False)
         self.day_select.add_listener(self)
         self.day_select.grid(row=3,column=2,rowspan=1,sticky='news')
 
-        self.loser_score_range = RangeAdjustor(self, 'Loser Score',plus_minus_btns=True)
+        self.loser_score_range = visual_tools.RangeAdjustor(self, 'Loser Score',plus_minus_btns=True)
         self.loser_score_range.add_listener(self)
         self.loser_score_range.grid(row=1,column=3,sticky='news')
 
-        self.number_range = RangeAdjustor(self, 'Number',plus_minus_btns=True)
+        self.number_range = visual_tools.RangeAdjustor(self, 'Number',plus_minus_btns=True)
         self.number_range.add_listener(self)
         self.number_range.grid(row=2,column=3,sticky='news')
 
@@ -907,10 +864,10 @@ class FilterView(View):
         self.winner_select.set_options(self.stats.list_players())
         self.loser_select.set_options(self.stats.list_players())
         self.event_select.set_options(list(self.date_lookup.keys()))
-        
+
         self.loser_score_range.set_min_val(self.stats.min_score_possible())
         self.loser_score_range.set_max_val(self.stats.max_score_possible())
-        
+
         self.number_range.set_min_val(self.stats.min_num())
         self.number_range.set_max_val(self.stats.max_num())
 
@@ -934,9 +891,8 @@ class FilterView(View):
                 self.event_select.select(event.name, like_click=False)
 
             self.day_select.deselect_all(like_click=False)
-            days = []
             for day in self.filter.days_of_week:
-                self.day_select.select(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday','Sunday'][day],like_click=False)
+                self.day_select.select(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday','Sunday'][day], like_click=False)
 
             self.loser_score_range.set_low_val(self.filter.lose_score_min)
             self.loser_score_range.set_high_val(self.filter.lose_score_max)
@@ -974,38 +930,22 @@ class FilterView(View):
         self.loser_select.clear_options()
         self.event_select.clear_options()
 
-    """
-    Called by ViewControl
-    """
     def reset(self) -> None:
         pass
 
-    """
-    Apply the chosen filter to the stats
-    """
     def apply_filter(self) -> None:
         self.stats.apply_filter(self.filter)
         #self.update_options()
         self.count_text.set(f'({self.stats.count_filtered(self.filter)} games selected)')
 
-    """
-    Reset the stats to the default filter
-    """
     def reset_filter(self) -> None: #TODO: actually reset or just remove
         self.stats.reset_filter()
         #self.update_options()
         self.count_text.set(f'({self.stats.count_filtered(self.filter)} games selected)')
 
-    """
-    Update the labels to reflect the current state
-    """
     def update_labels(self) -> None:
         self.count_text.set(f'({self.stats.count_filtered(self.filter)} games selected, press Apply to apply)')
 
-    """
-    Get notified when an update occurs to a value and handle the update
-    (for RangeAdjustors)
-    """
     def update_range(self, name, which, value) -> None:
         if name == 'Loser Score':
             if which == 'min':
@@ -1022,10 +962,6 @@ class FilterView(View):
                 self.filter.number_max = value
                 self.update_labels()
 
-    """
-    Get notified when an update occurs to a value and handle the update
-    (for MultiSelectors)
-    """
     def update_value(self, name, value):
         if name == 'Winner Select':
             self.filter.winners = set(value)
@@ -1049,56 +985,48 @@ class FilterView(View):
             return # only update labels if something happens
         self.update_labels()
 
-"""
-Interaction and visualization for creating graphs
-"""
 class GraphView(View):
+    """
+    Interaction and visualization for creating graphs
+    """
 
     def __init__(self, frm:ttk.Frame):
         super().__init__(frm)
-        
+
         self.supported_xs = ['date','number','game']
         self.supported_ys = ['wins','goals','colley win rank', 'colley goal rank', 'elo', 'skill','avg gf', 'avg ga','win streak', 'win prob','games','win pct', 'wins over expected']
 
-        self.players_to_show = MultiSelector(self,"Players")
+        self.players_to_show = visual_tools.MultiSelector(self,"Players")
         self.players_to_show.add_listener(self)
         self.players_to_show.grid(row=0,column=0,sticky='news',rowspan=3)
 
-        self.x_choice = SingleSelector(self,"x axis",self.supported_xs, selected='date')
+        self.x_choice = visual_tools.SingleSelector(self,"x axis",self.supported_xs, selected='date')
         self.x_choice.add_listener(self)
         self.x_choice.grid(row=0,column=1,sticky='news')
 
-        self.y_choice = SingleSelector(self,"y axis",self.supported_ys, selected='wins')
+        self.y_choice = visual_tools.SingleSelector(self,"y axis",self.supported_ys, selected='wins')
         self.y_choice.add_listener(self)
         self.y_choice.grid(row=1,column=1,sticky='news')
 
-        self.alpha_val = ValueAdjustor(self,'alpha',0.1,0,1,is_int=False)
+        self.alpha_val = visual_tools.ValueAdjustor(self,'alpha',0.1,0,1,is_int=False)
         self.alpha_val.add_listener(self)
         self.alpha_val.grid(row=2,column=1,sticky='news')
 
-        self.decay_val = ValueAdjustor(self,'decay',1,0,1,is_int=False)
+        self.decay_val = visual_tools.ValueAdjustor(self,'decay',1,0,1,is_int=False)
         self.decay_val.add_listener(self)
         self.decay_val.grid(row=3,column=1,sticky='news')
 
-        self.elo_init_val = ValueAdjustor(self,'Elo initial',1500,is_int=True)
+        self.elo_init_val = visual_tools.ValueAdjustor(self,'Elo initial',1500,is_int=True)
         self.elo_init_val.add_listener(self)
         self.elo_init_val.grid(row=3,column=0,sticky='news')
 
-        self.elo_k_val = ValueAdjustor(self,'Elo k value',32,is_int=True)
+        self.elo_k_val = visual_tools.ValueAdjustor(self,'Elo k value',32,is_int=True)
         self.elo_k_val.add_listener(self)
         self.elo_k_val.grid(row=4,column=0,sticky='news')
 
         self.graphed = False
-        # TODO: this may cause an error, may be unecessary, leave in?
-        """
-        self.graph = graphsyousee.create_foosball_graph(f'{self.y_choice.get_selected()} by {self.x_choice.get_selected()}',self.x_choice.get_selected(),self.y_choice.get_selected(),
-                                                        self.players_to_show.get_as_list(),
-                                                        self.get_x_axis(),
-                                                        self.get_y_axis())
-        self.graph_display = FigureCanvasTkAgg(self.graph,self)
-        self.graph_display.draw()
-        self.graph_display.get_tk_widget().grid(row=2,column=1,sticky='news',rowspan=3)
-        """
+        self.graph = None
+        self.graph_display = None
 
     def attach(self, stats:sc.StatCollector, dates=None, filter=None) -> None:
         if not self.attached:
@@ -1142,7 +1070,7 @@ class GraphView(View):
             return list(range(len(self.stats.list_numbers(selected_only=True))))
         else:
             print(f"ERROR: unknown x axis {choice}")
-        
+
     def get_y_axis(self) -> dict[str,list]:
         choice = self.y_choice.get_selected()
         if choice == 'wins':
@@ -1192,15 +1120,12 @@ class GraphView(View):
         else:
             print(f"ERROR: unknown y axis {choice}")
 
-    """
-    Should update labels/check stats for any changes
-    """ 
     def reset(self) -> None:
         if self.graphed:
             matplotlib.pyplot.close(self.graph)
             self.graph_display.get_tk_widget().destroy()
         self.graphed = True
-        
+
         self.graph = graphsyousee.create_foosball_graph(f'{self.y_choice.get_selected()} by {self.x_choice.get_selected()}',self.x_choice.get_selected(),self.y_choice.get_selected(),
                                                         self.players_to_show.get_as_list(),
                                                         self.get_x_axis(),
@@ -1211,12 +1136,8 @@ class GraphView(View):
         self.graph_display.draw()
         self.graph_display.get_tk_widget().grid(row=0,column=2,sticky='news',rowspan=3)
 
-    """
-    Update labels to reflect current internal state -- no labels to update I think
-    """
     def update_labels(self) -> None:
         pass
-
 
 class RecordsView(View):
     """
@@ -1228,12 +1149,12 @@ class RecordsView(View):
 
         self.records = records.Records()
 
-        self.n_select = ValueAdjustor(self,"Select n", 3, 1, None, apply_btn=True)
+        self.n_select = visual_tools.ValueAdjustor(self,"Select n", 3, 1, None, apply_btn=True)
         self.n_select.add_listener(self)
         self.n_select.grid(row=0,column=0,sticky='news')
         self.n = self.n_select.get_value()
 
-        self.scroll = ValueAdjustor(self, "Scroll", 0, 0, None, plus_minus_btns=True)
+        self.scroll = visual_tools.ValueAdjustor(self, "Scroll", 0, 0, None, plus_minus_btns=True)
         self.scroll.add_listener(self)
         self.scroll.grid(row=0,column=1,sticky='news')
 
@@ -1241,10 +1162,10 @@ class RecordsView(View):
         for category in self.records.get_categories():
             self.record_list.append((category, []))
 
-        self.groups = dict[records.TimeFrame,PerformanceGroup]()
+        self.groups = dict[records.TimeFrame, visual_tools.PerformanceGroup]()
         i = 0
         for time_frame in self.records.get_time_frames():
-            self.groups[time_frame] = PerformanceGroup(self, time_frame.get_string().upper(), self.record_list, self.n)
+            self.groups[time_frame] = visual_tools.PerformanceGroup(self, time_frame.get_string().upper(), self.record_list, self.n)
             if i == 0:
                 self.groups[time_frame].grid(row=i//2+1,column=i%2,columnspan=2,sticky='news')
             else:
@@ -1263,7 +1184,7 @@ class RecordsView(View):
             i = len(self.groups)
             for time_frame in self.records.get_time_frames():
                 if time_frame not in self.groups:
-                    self.groups[time_frame] = PerformanceGroup(self, time_frame.get_string().upper(), self.record_list, self.n)
+                    self.groups[time_frame] = visual_tools.PerformanceGroup(self, time_frame.get_string().upper(), self.record_list, self.n)
                     if i == 0:
                         self.groups[time_frame].grid(row=1,column=0,columnspan=2,sticky='news')
                     else:
@@ -1317,13 +1238,12 @@ class RecordsView(View):
 
     def reset(self) -> None:
         pass
-    
-    def update_labels(self) -> None:
-        for time_frame in self.groups.keys():
-            for category in self.records.get_categories():
-                best = self.records.get_top_performances(category,time_frame,self.n)
-                self.groups[time_frame].set_performances(category, best)
 
+    def update_labels(self) -> None:
+        for time_frame, group in self.groups.items():
+            for category in self.records.get_categories():
+                best = self.records.get_top_performances(category, time_frame, self.n)
+                group.set_performances(category, best)
 
 class TournamentView(View):
 
@@ -1383,10 +1303,10 @@ class TournamentInteractView(View):
                 ttk.Button(top_frame,text=name,command=additional_buttons[name]).grid(row=0,column=c,sticky='news')
                 c += 1
 
-        self.winner_lbl = LabeledValue(top_frame,"Winner","")
+        self.winner_lbl = visual_tools.LabeledValue(top_frame,"Winner","")
         self.winner_lbl.grid(row=0,column=c,sticky='news')
 
-        self.bracket_view = BracketView(self)
+        self.bracket_view = visual_tools.BracketView(self)
         self.bracket_view.grid(row=1,column=0,sticky='news')
         self.tournament = None
 
@@ -1439,17 +1359,17 @@ class TournamentCreatorView(View):
         top_frame.grid(row=0,column=0,columnspan=999)
         ttk.Button(top_frame,text="Add Player",command=self.add_player_slot).grid(row=0,column=0,sticky='news')
         #ttk.Button(top_frame,text="Start Tournament",command=self.start_tournament).grid(row=0,column=4,sticky='news')
-        
-        self.name_entry = LabeledEntry(top_frame, "Name")
+
+        self.name_entry = visual_tools.LabeledEntry(top_frame, "Name")
         self.name_entry.grid(row=0,column=1,sticky='news')
 
-        self.seed_selector = SingleSelector(top_frame, "Seeding", ["as entered","skill","random"], selected='as entered')
+        self.seed_selector = visual_tools.SingleSelector(top_frame, "Seeding", ["as entered","skill","random"], selected='as entered')
         self.seed_selector.grid(row=0,column=2,sticky='news')
-        
-        self.type_selector = SingleSelector(top_frame, "Type", ["single elimination","round robin"],selected='single elimination') #,"double elimination","round robin"
+
+        self.type_selector = visual_tools.SingleSelector(top_frame, "Type", ["single elimination","round robin"],selected='single elimination') #,"double elimination","round robin"
         self.type_selector.grid(row=0,column=3,sticky='news')
-        
-        self.reseed_selector = SingleSelector(top_frame, "Round Seeding", ["round reseeding"],selected='round reseeding')#"fixed seeding",
+
+        self.reseed_selector = visual_tools.SingleSelector(top_frame, "Round Seeding", ["round reseeding"],selected='round reseeding')#"fixed seeding",
         self.reseed_selector.grid(row=0,column=4,sticky='news')
 
         c = 5
@@ -1458,11 +1378,11 @@ class TournamentCreatorView(View):
                 ttk.Button(top_frame,text=name,command=additional_buttons[name]).grid(row=0,column=c,sticky='news')
                 c += 1
 
-        self.player_entries = list[LabeledEntry]()
+        self.player_entries : list[visual_tools.LabeledEntry] = []
         for i in range(4):
             def remove(a=i):
                 return lambda : self.remove_player_slot(a)
-            self.player_entries.append(LabeledEntry(self,f'Player {i+1}', apply_btn=False, additional_buttons={'Remove':remove()}))
+            self.player_entries.append(visual_tools.LabeledEntry(self,f'Player {i+1}', apply_btn=False, additional_buttons={'Remove':remove()}))
             self.player_entries[i].grid(row=i+1,column=0)
 
     def get_tournament(self) -> tournament.Tournament:
@@ -1470,15 +1390,15 @@ class TournamentCreatorView(View):
         players = list[str]()
         for entry in self.player_entries:
             players.append(entry.get_entry())
-        
+
         t_type = tournament.Tournament.TYPE[self.type_selector.get_selected()]
         seeding = tournament.Tournament.SEEDING[self.seed_selector.get_selected()]
         reseeding = self.reseed_selector.get_selected() == 'round reseeding'
         return tournament.Tournament(name, players, t_type, seeding, reseeding)
-    
+
     def add_player_slot(self):
         num_players = len(self.player_entries)
-        self.player_entries.append(LabeledEntry(self,f'Player {num_players+1}', apply_btn=False, additional_buttons={'Remove':lambda : self.remove_player_slot(num_players)}))
+        self.player_entries.append(visual_tools.LabeledEntry(self,f'Player {num_players+1}', apply_btn=False, additional_buttons={'Remove':lambda : self.remove_player_slot(num_players)}))
         per_col = 7
         self.player_entries[-1].grid(row=num_players%per_col+1,column=num_players//per_col)
 
@@ -1506,7 +1426,6 @@ class TournamentCreatorView(View):
     def update_labels(self) -> None:
         pass
 
-
 class IndividualView(View):
     """ TODO: this whole class
     Interaction and visualization for individual achievements
@@ -1514,7 +1433,7 @@ class IndividualView(View):
 
     def __init__(self, frm:ttk.Frame):
         super().__init__(frm)
-        
+
         self.individual = individual.IndividualStats('',self.stats)
 
         entry_frm = ttk.Frame(self)
@@ -1546,9 +1465,6 @@ class IndividualView(View):
     def detach(self) -> None:
         pass
 
-    """
-    Should update labels/check stats for any changes
-    """
     def reset(self) -> None:
         pass
 
@@ -1561,12 +1477,6 @@ class IndividualView(View):
         self.losses.config(text=self.individual.get_record()[1])
         self.gf.config(text=self.individual.get_goals()[0])
         self.ga.config(text=self.individual.get_goals()[1])
-
-def main() -> None:
-    visualize_foosball()
-
-if __name__ == "__main__":
-    main()
 
 """
 class ViewSkeleton(View):

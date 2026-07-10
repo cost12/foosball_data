@@ -1,17 +1,15 @@
-import foosballgame
-
 import pandas as pd
 
-"""
-This class calculates and stores elo ratings for players across foosball games
+import backend.foosballgame as foosballgame
 
-Notes: 
-- doesn't account for possibility of ties: limited extensibility, easy fix if needed
-- static k: would be interesting to have potential variablility in k
-"""
 class ELO_Calculator():
-    
     """
+    This class calculates and stores elo ratings for players across foosball games
+
+    Notes:
+    - doesn't account for possibility of ties: limited extensibility, easy fix if needed
+    - static k: would be interesting to have potential variablility in k
+
     Pass in an initial rating for all players and a k value for all players
     Typical choices are 1500 for initial rating and 32 for k
     k can vary from game to game, when masters play k is typically 16
@@ -23,25 +21,16 @@ class ELO_Calculator():
         self.game_ratings = {}
         self.goal_ratings = {}
 
-    """
-    Return a dataframe that can be used by statcollector
-    """
     def to_df(self):
         ratings = {}
         for player in self.game_ratings:
             ratings[player] = {'Name': player, 'ELO': self.get_game_elo(player), 'GOAL ELO': self.get_goal_elo(player)}
         return pd.DataFrame.from_dict(ratings,orient='index')
 
-    """
-    Add games to the ELO ranking and adjust the ratings according to the results
-    """
     def add_games(self, games:list[foosballgame.FoosballGame]) -> None:
         for game in games:
             self.add_game(game)
 
-    """
-    Add a game to the ELO ranking and adjust the ratings according to the results
-    """
     def add_game(self, game:foosballgame.FoosballGame) -> None:
         # make sure both players are included in the game_ratings
         if game.winner not in self.game_ratings:
@@ -74,59 +63,41 @@ class ELO_Calculator():
         self.__update_goal_elo(game.loser,  loser_actual,  loser_goal_exp)
 
 
-    """
-    Update the game elo of a player given the outcome of a game
-    """
     def __update_game_elo(self, player:str, outcome:float, expected:float) -> None:
         self.game_ratings[player] += self.k*(outcome-expected)
 
-    """
-    Update the goal elo of a player given the outcome of a game
-    """
     def __update_goal_elo(self, player, outcome:float, expected:float) -> None:
         self.goal_ratings[player] += self.k*(outcome-expected)
 
-    """
-    Calculate the expected probability that player1 beats player2
-    """
     def get_win_probability(self, player1:str, player2:str) -> float:
         p1_odds = 1/(1+pow(10,(self.game_ratings[player2]-self.game_ratings[player1])/400)) # 480
         return p1_odds
-    
-    """
-    Calculate the expected probability that player1 scores on player2
-    """
+
     def get_goal_probability(self, player1:str, player2:str) -> float:
         p1_odds = 1/(1+pow(10,(self.goal_ratings[player2]-self.goal_ratings[player1])/400)) # 480
         return p1_odds
 
-    """
-    Get the game elo of a player
-    """
     def get_game_elo(self, player:str) -> int:
         if player not in self.game_ratings:
             return self.initial_rating
         return int(self.game_ratings[player])
-    
-    """
-    Get the goal elo of a player
-    """
+
     def get_goal_elo(self, player:str) -> int:
         if player not in self.goal_ratings:
             return self.initial_rating
         return int(self.goal_ratings[player])
 
-"""
-Returns the rankings formatted for graph output
-"""
 def get_rankings_list(games:list[foosballgame.FoosballGame], xlist:list, players:list[str], is_daily:bool, by_wins:bool = True,*,init_val=1500,k_val=32) -> dict[str:float]:
+    """
+    Returns the rankings formatted for graph output
+    """
     rankings = {}
     elo_tracker = ELO_Calculator(initial_rating=init_val,k_value=k_val)
     game_ind = 0
-    
+
     for player in players:
         rankings[player] = []
-        
+
     for x in xlist:
         while game_ind < len(games) and ((is_daily and games[game_ind].date <= x) or ((not is_daily) and games[game_ind].number <= x)):
             elo_tracker.add_game(games[game_ind])

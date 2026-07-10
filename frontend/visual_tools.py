@@ -1,20 +1,19 @@
 import tkinter as tk
 from tkinter import ttk
-from tkinter.constants import *
+import tkinter.constants as tk_constants 
 import platform
 
 from typing import Union
 
-import constants as c
-import foosballgame
-import tournament
-import records
+import constants
+import backend.foosballgame as foosballgame
+import backend.tournament as tournament
+import backend.records as records
 
-""" TODO: should duplicates be allowed? right now they are
-Select values from a list of values
-"""
 class MultiSelector(ttk.Frame):
-
+    """ TODO: should duplicates be allowed? right now they are
+    Select values from a list of values
+    """
     def __init__(self, frm:ttk.Frame, name:str, options:list[str] = None,*, max_len:int=20, apply_btn:bool=False, sorted:bool=True) -> None:
         super().__init__(frm, borderwidth=2, relief='groove')
 
@@ -36,9 +35,6 @@ class MultiSelector(ttk.Frame):
         ttk.Label(self,text=self.name).grid(row=0,column=0,columnspan=2,sticky='news')
         self.__place_buttons()
 
-    """
-    Return the selected values as a list
-    """
     def get_as_list(self) -> list[str]:
         lis = list[str]()
         for sel,opt in zip(self.selected,self.options):
@@ -46,17 +42,10 @@ class MultiSelector(ttk.Frame):
                 lis.append(opt)
         return lis
 
-    """
-    Notify any listeners that the values have been updated
-    Passes the list of selected values to all listeners
-    """
     def value_update(self) -> None:
         for listener in self.listeners:
             listener.update_value(self.name, self.get_as_list())
 
-    """
-    Selects all values
-    """
     def select_all(self, like_click:bool=True) -> None:
         for btn,sel in zip(self.check_btns,self.selected):
             btn.state(['selected'])
@@ -64,9 +53,6 @@ class MultiSelector(ttk.Frame):
         if not self.apply_btn and like_click:
             self.value_update()
 
-    """
-    Deselects all values
-    """
     def deselect_all(self, like_click:bool=True) -> None:
         for btn,sel in zip(self.check_btns,self.selected):
             btn.state(['!selected'])
@@ -74,10 +60,6 @@ class MultiSelector(ttk.Frame):
         if not self.apply_btn and like_click:
             self.value_update()
 
-    """
-    Adds a listener that will be updated everytime different values are selected
-    Listeners use update_value(name, value) to listen
-    """
     def add_listener(self, listener) -> None:
         self.listeners.append(listener)
 
@@ -106,45 +88,6 @@ class MultiSelector(ttk.Frame):
         self.check_btns.clear()
         self.options.clear()
         self.selected.clear()
-
-    """
-    def remove_option(self, option:str) -> bool:
-        if option in self.options:
-            index = self.options.index(option)
-            btn = self.check_btns.pop(index)
-            btn.destroy()
-            self.options.pop(index)
-            self.selected.pop(index)
-            for i in range(index,len(self.check_btns)):
-                btn.grid(row=i%20,column=i//20,sticky='news')
-            return True
-        return False
-    """
-        
-    """
-    def add_option(self, option:str, select:bool=True) -> None:
-        if self.sorted:
-            if c.DEBUG_MODE:
-                print("Error: Multiselector.add_option not implemented for sorted selections")
-        else:
-            self.options.append(option)
-            self.selected.append(tk.IntVar(value=0))
-            if self.apply_btn:
-                self.check_btns.append(ttk.Checkbutton(self, text=option, variable=self.selected[-1], onvalue=1, offvalue=0))
-            else:
-                self.check_btns.append(ttk.Checkbutton(self, text=option, variable=self.selected[-1], onvalue=1, offvalue=0, command=self.value_update))
-            self.check_btns[-1].state(['!alternate'])
-            if select:
-                self.check_btns[-1].state(['selected'])
-                self.selected[-1].set(1)
-            r = len(self.options)%self.max_len
-            c = len(self.options)//self.max_len
-            self.check_btns[-1].grid(row=r,column=c,sticky='news')
-    """
-
-    def add_options(self, options:list[str]) -> None:
-        for option in options:
-            self.add_option(option)
 
     def set_options(self, options:list[str]) -> None:
         self.clear_options()
@@ -184,11 +127,10 @@ class MultiSelector(ttk.Frame):
             b3.grid(row=3,column=c,sticky='news')
             self.end_btns.append(b3)
 
-""" TODO: should duplicates be allowed? right now they are
-Select a value from a list of values
-"""
 class SingleSelector(ttk.Frame):
-
+    """ TODO: should duplicates be allowed? right now they are
+    Select a value from a list of values
+    """
     def __init__(self, frm:ttk.Frame, name:str, options:list, *, selected:str=None, apply_btn:bool=False, sorted:bool=True) -> None:
         super().__init__(frm, borderwidth=2, relief='groove')
 
@@ -224,24 +166,13 @@ class SingleSelector(ttk.Frame):
             r += 1
         self.selected.set(self.options[0])
 
-    """
-    Return the selected value
-    """
     def get_selected(self) -> str:
         return self.selected.get()
 
-    """
-    Notify any listeners that the values have been updated
-    Passes the list of selected values to all listeners
-    """
     def value_update(self) -> None:
         for listener in self.listeners:
             listener.update_value(self.name, self.get_selected())
 
-    """
-    Adds a listener that will be updated everytime different values are selected
-    Listeners use update_value(name, value) to listen
-    """
     def add_listener(self, listener) -> None:
         self.listeners.append(listener)
 
@@ -276,10 +207,10 @@ class SingleSelector(ttk.Frame):
                     self.selected.set('')
             return True
         return False
-    
+
     def add_option(self, option:str) -> None:
         if self.sorted:
-            if c.DEBUG_MODE:
+            if constants.DEBUG_MODE:
                 print("Error: Multiselector.add_option not implemented for sorted selections")
         else:
             self.options.append(option)
@@ -298,9 +229,6 @@ class SingleSelector(ttk.Frame):
         self.options.extend(options)
         self.__place_buttons()
 
-"""
-UI to adjust a range of values
-"""
 class RangeAdjustor(ttk.Frame):
 
     def __init__(self, frm:ttk.Frame, name:str, low_val:int=0, high_val:int=10, min_val:Union[int,None]=None, max_val:Union[int,None]=None,*,plus_minus_btns=False,jump=1):
@@ -327,23 +255,13 @@ class RangeAdjustor(ttk.Frame):
         self.max_adj.grid(row=r,column=1,sticky='news')
         self.max_adj.add_listener(self)
 
-    """
-    Adds a listener that will be notified when value is changed
-    """
     def add_listener(self, listener) -> None:
         self.listeners.append(listener)
 
-    """
-    Updates the listeners based on a value change
-    """
     def __update_listeners(self, which, value) -> None:
         for listener in self.listeners:
             listener.update_range(self.name, which, value)
-    
-    """
-    Handles an update to one of the values
-    ValueAdjustor calls this when a value is changed
-    """
+
     def update_value(self, name:str, value:int):
         if name == 'min':
             self.min_val = value
@@ -369,11 +287,8 @@ class RangeAdjustor(ttk.Frame):
         self.high_val = value
         self.max_adj.set_value(value)
 
-"""
-UI to adjust a value with an optional min/max 
-"""
 class ValueAdjustor(ttk.Frame):
-    
+
     def __init__(self, frm:ttk.Frame, name:str, cur_val:float=0, min_val:Union[float,None]=None, max_val:Union[float,None]=None,*, is_int:bool=True, apply_btn=False, plus_minus_btns=False,jump=1) -> None:
         super().__init__(frm, borderwidth=2, relief='raised')
 
@@ -408,15 +323,9 @@ class ValueAdjustor(ttk.Frame):
     def get_value(self):
         return self.val.get()
 
-    """
-    Adds a listener that will be notified when value is changed
-    """
     def add_listener(self, listener) -> None:
         self.listeners.append(listener)
 
-    """
-    Updates lables to show current values
-    """
     def update_labels(self, as_click:bool=True) -> None:
         if self.max_val is not None and self.val.get() > self.max_val:
             self.val.set(self.max_val)
@@ -434,9 +343,6 @@ class ValueAdjustor(ttk.Frame):
             self.val.set(value)
             self.update_labels(as_click)
 
-    """
-    Sets the min value to a new value and updates the current value as necessary
-    """
     def set_min(self, new_min:Union[int,None], as_click:bool=True) -> None:
         self.min_val = new_min
         if self.min_val is not None and self.max_val is not None and self.min_val > self.max_val:
@@ -445,9 +351,6 @@ class ValueAdjustor(ttk.Frame):
             self.val.set(self.min_val)
             self.update_labels(as_click)
 
-    """
-    Sets the max value to a new value and updates the current value as necessary
-    """
     def set_max(self, new_max:Union[int,None], as_click=True) -> None:
         self.max_val = new_max
         if self.min_val is not None and self.max_val is not None and self.max_val < self.min_val:
@@ -456,10 +359,6 @@ class ValueAdjustor(ttk.Frame):
             self.val.set(self.max_val)
             self.update_labels(as_click)
 
-"""
-Displays a label and a value
-Value can be updated
-"""
 class LabeledValue(ttk.Frame):
 
     def __init__(self, frm:ttk.Frame, label:str, value="None"):
@@ -493,11 +392,6 @@ class LabelGroup(ttk.Frame):
     def set_value(self, label, value):
         self.labels[label].set_value(value)
 
-"""
-UI to select buttons
-Like SingleSelector but different style/ use implications
- - implies fewer options, less need to sort
-"""
 class ButtonGroup(ttk.Frame):
 
     def __init__(self, frm:ttk.Frame, name:str, options:list[str]=None,selected:str=None):
@@ -583,7 +477,7 @@ class LabeledEntry(ttk.Frame):
 
     def get_entry(self) -> str:
         return self.entry.get()
-    
+
     def set_entry(self, string):
         self.entry.set(string)
 
@@ -601,6 +495,9 @@ class MatchupView(ttk.Frame):
 
         self.attached = False
         self.matchup = None
+
+        self.home = None
+        self.away = None
 
     def attach(self, matchup:foosballgame.FoosballMatchup) -> None:
         if not self.attached:
@@ -659,9 +556,9 @@ class BracketView(ttk.Frame):
 
     def update(self):
         c = 0
-        for round in self.tournament.round_results:
+        for tournament_round in self.tournament.round_results:
             r = 0
-            for group in round:
+            for group in tournament_round:
                 for matchup in group.matchups:
                     new = MatchupView(self)
                     new.attach(matchup)
@@ -687,7 +584,7 @@ class PerformanceView(ttk.Frame):
 
     def __init__(self, frm:ttk.Frame, name:str, n_best:int=3, performances:list[records.Performance]=None):
         super().__init__(frm, borderwidth=2, relief='groove')
-        
+
         ttk.Label(self,text=name).grid(row=0,column=0,columnspan=4,sticky='news')
 
         self.name = name
@@ -746,7 +643,7 @@ class PerformanceView(ttk.Frame):
             self.other_lbls.append(result)
 
             #print(type(performance.on_date))
-            if type(performance.on_date) == str:
+            if isinstance(performance.on_date, str):
                 date_txt = performance.on_date
             elif performance.is_across_dates():
                 from_date_txt = performance.on_date.strftime("%b %#d, %y")
@@ -799,16 +696,16 @@ class PerformanceGroup(ttk.Frame):
     def set_n(self, n:int):
         if n >= 1:
             self.n = n
-            for list in self.performances.values():
-                list.set_n(n)
+            for l in self.performances.values():
+                l.set_n(n)
 
 class ScrollFrame(ttk.Frame):
     def __init__(self, parent):
         super().__init__(parent, borderwidth=2, relief='groove') # create a frame (self)
 
         self.canvas = tk.Canvas(self, borderwidth=0, background="#ffffff")          #place canvas on self
-        self.viewPort = ttk.Frame(self.canvas)                                      #place a frame on the canvas, this frame will hold the child widgets 
-        self.vsb = ttk.Scrollbar(self, orient="vertical", command=self.canvas.yview) #place a scrollbar on self 
+        self.viewPort = ttk.Frame(self.canvas)                                      #place a frame on the canvas, this frame will hold the child widgets
+        self.vsb = ttk.Scrollbar(self, orient="vertical", command=self.canvas.yview) #place a scrollbar on self
         self.canvas.configure(yscrollcommand=self.vsb.set)                          #attach scrollbar action to scroll of canvas
 
         self.vsb.pack(side="right", fill="y",expand=False)                                       #pack scrollbar to right of self
@@ -818,13 +715,13 @@ class ScrollFrame(ttk.Frame):
 
         self.viewPort.bind("<Configure>", self.onFrameConfigure)                       #bind an event whenever the size of the viewPort frame changes.
         self.canvas.bind("<Configure>", self.onCanvasConfigure)                       #bind an event whenever the size of the canvas frame changes.
-            
+
         self.viewPort.bind('<Enter>', self.onEnter)                                 # bind wheel events when the cursor enters the control
         self.viewPort.bind('<Leave>', self.onLeave)                                 # unbind wheel events when the cursorl leaves the control
 
         self.onFrameConfigure(None)                                                 #perform an initial stretch on render, otherwise the scroll region has a tiny border until the first resize
 
-    def onFrameConfigure(self, event):                                              
+    def onFrameConfigure(self, event):
         '''Reset the scroll region to encompass the inner frame'''
         self.canvas.configure(scrollregion=self.canvas.bbox("all"))                 #whenever the size of the frame changes, alter the scroll region respectively.
 
@@ -843,7 +740,7 @@ class ScrollFrame(ttk.Frame):
                 self.canvas.yview_scroll( -1, "units" )
             elif event.num == 5:
                 self.canvas.yview_scroll( 1, "units" )
-    
+
     def onEnter(self, event):                                                       # bind wheel events when the cursor enters the control
         if platform.system() == 'Linux':
             self.canvas.bind_all("<Button-4>", self.onMouseWheel)

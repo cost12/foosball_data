@@ -1,4 +1,4 @@
-import foosballgame
+import backend.foosballgame as foosballgame
 
 class SheetIdentifier:
 
@@ -19,17 +19,17 @@ class Tracker(dict):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-    
+
     def __missing__(self,key):
         return 0
-    
+
     def __setitem__(self, key, value):
         if value==0:
             if key in self:  # returns zero anyway, so no need to store it
                 del self[key]
         else:
             super().__setitem__(key, value)
-    
+
     def __mul__(self, num):
         if num == 0:
             self.clear()
@@ -39,7 +39,7 @@ class Tracker(dict):
 
     def __rmul__(self, num):
         return self.__mul__(num)
-    
+
     def times(self, num):
         self.__mul__(num)
 
@@ -163,15 +163,3 @@ def get_player_lists(games, step_func, players, x_list, is_daily,*, combine=lamb
             player_lists[player][i] = combine(totals[player])
         i += 1
     return player_lists
-
-
-if __name__=="__main__":
-    test = Tracker()
-    test[1] = 5
-    test.times(0.99)
-    test[1] += 2
-    print(test[1])
-    test.times(0.99)
-    test[1] += 2
-    print(test)
-    print(test[1])
