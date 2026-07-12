@@ -1,9 +1,18 @@
 import matplotlib.pyplot as plt
 
-from mpl_interactions import ioff, panhandler, zoom_factory
+#from mpl_interactions import ioff, panhandler, zoom_factory
 
-
-def create_foosball_graph(name:str, xlabel:str, ylabel:str, players:list[str], xlist:list, rankings:dict[str,list], remove_zeros:bool=True, ignore_players:list[str]=None, scatter:bool=False):
+def create_foosball_graph(
+    name:str,
+    xlabel:str,
+    ylabel:str,
+    players:list[str],
+    xlist:list,
+    rankings:dict[str,list],
+    remove_zeros:bool=True,
+    ignore_players:list[str]=None,
+    scatter:bool=False
+):
     """
     Creates and returns a formatted graph
     """

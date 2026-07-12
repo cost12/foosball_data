@@ -1,7 +1,10 @@
 import random
+import logging
 
-import backend.statcollector as sc
-import backend.foosballgame as foosballgame
+from backend import statcollector
+from backend import foosballgame
+
+logger = logging.getLogger(__name__)
 
 class Simulator:
     """ TODO: use foosballgame.FoosballMatchup
@@ -32,7 +35,7 @@ class Simulator:
             return True
         return False
 
-    def attach(self, stats:sc.StatCollector):
+    def attach(self, stats: statcollector.StatCollector):
         if not self.attached:
             self.attached = True
             self.stats = stats
@@ -121,12 +124,17 @@ class Simulator:
         if player == self.matchup.home_team:
             return foosballgame.get_prob_of_score(self.get_p1_goal_prob(),score,self.matchup.home_score,self.matchup.away_score,self.matchup.game_to)
         elif player == self.matchup.away_team:
-            return foosballgame.get_prob_of_score(1-self.get_p1_goal_prob(),score,self.matchup.away_score,self.matchup.home_score,self.matchup.game_to)
+            return foosballgame.get_prob_of_score(
+                1-self.get_p1_goal_prob(),
+                score,
+                self.matchup.away_score,
+                self.matchup.home_score,
+                self.matchup.game_to,
+            )
         else:
             if score == 0:
                 return 1
-            else:
-                return 0
+            return 0
 
     def get_times_scored_n(self, player:str, score:int) -> int:
         if player == self.matchup.home_team:
@@ -178,12 +186,13 @@ class EloSimulator(Simulator):
         return p1_prob
 
 
-def get_simulator(p1:str,p2:str,type:str):
-    if type.lower() == 'skill':
-        return SkillSimulator(foosballgame.FoosballMatchup(p1,p2,0))
-    if type.lower() in ['prob', 'probability']:
-        return ProbabilitySimulator(foosballgame.FoosballMatchup(p1,p2,0))
-    if type.lower() == 'elo':
-        return EloSimulator(foosballgame.FoosballMatchup(p1,p2,0))
-    else:
-        print(f"Unknown simulator type {type}")
+def get_simulator(p1:str, p2:str, sim_type:str):
+    match sim_type.lower():
+        case 'skill':
+            return SkillSimulator(foosballgame.FoosballMatchup(p1,p2,0))
+        case 'prob' | 'probability':
+            return ProbabilitySimulator(foosballgame.FoosballMatchup(p1,p2,0))
+        case 'elo':
+            return EloSimulator(foosballgame.FoosballMatchup(p1,p2,0))
+        case _:
+            logger.debug("Unknown simulator type %s", sim_type)

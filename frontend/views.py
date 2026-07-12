@@ -1,39 +1,52 @@
 from urllib.error import URLError
+from typing import Callable
 import tkinter as tk
 from tkinter import ttk
+import logging
+
 from ttkthemes import ThemedTk
 import pandas as pd
 import matplotlib.pyplot
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 #import matplotlib.backends.backend_tkagg as tkagg
 
-import backend.data_read_in as data_read_in
-import backend.statcollector as sc
-import backend.event_date as event_date
-import backend.gamefilter as gamefilter
-import backend.graphsyousee as graphsyousee
-import backend.colley as colley
-import backend.elo as elo
-import backend.myranks as myranks
-import backend.individual as individual
-import backend.utils as utils
-import backend.simulator as simulator
-import backend.records as records
-import backend.tournament as tournament
-import frontend.visual_tools as visual_tools
+from backend import data_read_in
+from backend import statcollector
+from backend import event_date
+from backend import gamefilter
+from backend import graphsyousee
+from backend import colley
+from backend import elo
+from backend import myranks
+from backend import individual
+from backend import utils
+from backend import simulator
+from backend import records
+from backend import tournament
+from frontend import visual_tools
 import constants
 
+logger = logging.getLogger(__name__)
 
 def visualize_foosball() -> None:
     try:
         games_options = data_read_in.read_in_games_options()
-    except Exception:
+    except (FileNotFoundError, ValueError):
+        logger.warning("Game file not read in correctly")
         games_options = [utils.SheetIdentifier("Coliseum Foosball","1hdM3dleaHsLLUpqnYBnNgiaK8rx9i-9TK4qdZafdz-0","1v1","data/foosball_data.txt")]
 
     try:
         dates_options = data_read_in.read_in_dates_options()
-    except Exception:
-        dates_options = [utils.SheetIdentifier("Semester Dates","1hdM3dleaHsLLUpqnYBnNgiaK8rx9i-9TK4qdZafdz-0","SemesterDates","data/semester_dates.txt")]
+    except (FileNotFoundError, ValueError):
+        logger.warning("Date file not read in correctly")
+        dates_options = [
+            utils.SheetIdentifier(
+                "Semester Dates",
+                "1hdM3dleaHsLLUpqnYBnNgiaK8rx9i-9TK4qdZafdz-0",
+                "SemesterDates",
+                "data/semester_dates.txt"
+            )
+        ]
 
     #root = tk.Tk()
     root = ThemedTk(theme="clam")
@@ -44,14 +57,14 @@ def visualize_foosball() -> None:
 
     #ttk.Style().theme_use("clam")
 
-    view_control = StatsViewControl(main_frame.viewPort,games_options,dates_options)
+    view_control = StatsViewControl(main_frame.view_port, games_options, dates_options)
     view_control.pack(fill='both',expand=True)
 
     root.mainloop()
 
 class View(ttk.Frame):
 
-    def __init__(self, frm:ttk.Frame, *, __s:sc.StatCollector=None, __d:list[utils.SheetIdentifier]=None, __f:gamefilter.GameFilter=None):
+    def __init__(self, frm:ttk.Frame, *, __s: statcollector.StatCollector=None, __d:list[utils.SheetIdentifier]=None, __f:gamefilter.GameFilter=None):
         super().__init__(frm, borderwidth=2, relief='groove')
 
         self.frm = frm
@@ -62,7 +75,7 @@ class View(ttk.Frame):
         self.dates = __d
         self.filter = __f
 
-    def attach(self, stats, dates, filter) -> None:
+    def attach(self, stats, dates, game_filter) -> None:
         """
         View attaches to the stats and dates passed in, updates it's values according to stats and dates
         """
@@ -112,7 +125,7 @@ class StatsViewControl(ttk.Frame):
 
         start_screen = str('dataset')
 
-        self.stats = sc.StatCollector([])
+        self.stats = statcollector.StatCollector([])
         self.dates = list[event_date.EventDate]()
         self.filter = gamefilter.GameFilter()
 
@@ -238,7 +251,7 @@ class DataSelector(View):
             date_bad_format = False
             try:
                 dates = data_read_in.read_in_dates_from_sheets(sheet.id, sheet.sheet_name)
-                self.error_text.set('Date file loaded successfully')
+                self.error_text.set(f'Date file loaded successfully ({len(dates)} dates)')
             except URLError:
                 date_fnf = True
                 self.error_text.set('Date file not found, looking for csv instead...')
@@ -270,7 +283,7 @@ class DataSelector(View):
             game_bad_format = False
             try:
                 games = data_read_in.read_in_games_from_sheets(sheet.id, sheet.sheet_name)
-                self.error_text.set('Game file loaded successfully')
+                self.error_text.set(f'Game file loaded successfully ({len(games)} games)')
             except URLError:
                 game_fnf = True
                 self.error_text.set('Game file not found, looking for csv instead...')
@@ -301,13 +314,12 @@ class DataSelector(View):
 
         # exit loading screen
 
-
-    def attach(self, stats:sc.StatCollector, dates:list[event_date.EventDate], filter:gamefilter.GameFilter):
+    def attach(self, stats: statcollector.StatCollector, dates:list[event_date.EventDate], game_filter:gamefilter.GameFilter):
         if not self.attached:
             self.attached = True
             self.stats = stats
             self.dates = dates
-            self.filter = filter
+            self.filter = game_filter
             self.error_text.set('Select data then press Apply to load')
             # this shouldn't select the first thing every time, that would be expensive and annoying
             # instead only update for the first load, then just make sure the right things are selected
@@ -482,7 +494,7 @@ class SimView(View):
             self.score_lbls_num.append(num_lbl)
             self.score_lbls_p2.append(p2_lbl)
 
-    def attach(self, stats:sc.StatCollector, dates:list[event_date.EventDate], filter=None):
+    def attach(self, stats: statcollector.StatCollector, dates:list[event_date.EventDate], game_filter=None):
         if not self.attached:
             self.attached = True
             self.stats = stats
@@ -621,7 +633,7 @@ class StatTable(View):
         self.view_btns.add_listener(self)
         self.end_btns = list[ttk.Button]()
 
-    def attach(self, stats:sc.StatCollector, dates=None, filter=None):
+    def attach(self, stats: statcollector.StatCollector, dates=None, game_filter=None):
         if not self.attached:
             self.attached = True
             self.stats = stats
@@ -768,14 +780,8 @@ class StatTable(View):
                 self.sort.remove(s)
                 if constants.DEBUG_MODE:
                     print("removed " + s)
-        if len(self.sort)>0:
-            try:
-                data = data.sort_values(by=self.sort, ascending=self.ascending)
-            except:
-                if constants.DEBUG_MODE:
-                    print(data.columns)
-                    print(self.sort)
-                    print("")
+        if len(self.sort) > 0:
+            data = data.sort_values(by=self.sort, ascending=self.ascending)
         return data
 
     def sort_by(self, n:str, ascending:bool=None) -> None:
@@ -786,7 +792,7 @@ class StatTable(View):
             self.ascending = ascending
         self.reset()
 
-    def __sort_call(self, n:str): # TODO: figure out how to type hint this
+    def __sort_call(self, n:str) -> Callable[[], None]:
         """
         This is called when a button is clicked to sort the data
         Returns a lambda function that calls sort_by and passes in n and the correct direction
@@ -834,7 +840,12 @@ class FilterView(View):
         self.event_select.add_listener(self)
         self.event_select.grid(row=1,column=2,rowspan=2,sticky='news')
 
-        self.day_select = visual_tools.MultiSelector(self, 'Day Select', ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday','Sunday'], sorted=False)
+        self.day_select = visual_tools.MultiSelector(
+            self,
+            'Day Select',
+            ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday','Sunday'],
+            is_sorted=False
+        )
         self.day_select.add_listener(self)
         self.day_select.grid(row=3,column=2,rowspan=1,sticky='news')
 
@@ -849,18 +860,18 @@ class FilterView(View):
         ttk.Button(self,text='Apply',command=self.apply_filter).grid(row=4,column=2,sticky='news')
         #ttk.Button(self,text='Reset',command=self.reset_filter).grid(row=4,column=3,sticky='news')
 
-    def attach(self, stats:sc.StatCollector, dates:list[event_date.EventDate], filter:gamefilter.GameFilter):
+    def attach(self, stats: statcollector.StatCollector, dates:list[event_date.EventDate], game_filter:gamefilter.GameFilter):
         if not self.attached:
             self.attached = True
             self.stats = stats
             self.dates = dates
-            self.filter = filter
+            self.filter = game_filter
 
             for date in self.dates:
                 self.date_lookup[date.name] = date
             self.update_options()
 
-    def update_options(self): # TODO: make sure filter and visualization are matched
+    def update_options(self):
         self.winner_select.set_options(self.stats.list_players())
         self.loser_select.set_options(self.stats.list_players())
         self.event_select.set_options(list(self.date_lookup.keys()))
@@ -880,7 +891,7 @@ class FilterView(View):
             for player in self.filter.losers:
                 self.loser_select.select(player, like_click=False)
 
-            self.restrict_select.select(gamefilter.GameFilter.select_to_str(self.filter.select_type), like_click=False)
+            self.restrict_select.select(self.filter.select_type.name, like_click=False)
 
             self.winner_color_select.deselect_all(like_click=False)
             for color in self.filter.winner_color:
@@ -978,7 +989,7 @@ class FilterView(View):
                 days.append(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday','Sunday'].index(day))
             self.filter.days_of_week = days
         elif name == 'Select Type':
-            self.filter.select_type = gamefilter.GameFilter.str_to_select(value)
+            self.filter.select_type = gamefilter.FilterType[value.upper()]
         elif name == 'Winner Color':
             self.filter.winner_color = value
         else:
@@ -994,7 +1005,21 @@ class GraphView(View):
         super().__init__(frm)
 
         self.supported_xs = ['date','number','game']
-        self.supported_ys = ['wins','goals','colley win rank', 'colley goal rank', 'elo', 'skill','avg gf', 'avg ga','win streak', 'win prob','games','win pct', 'wins over expected']
+        self.supported_ys = [
+            'wins',
+            'goals',
+            'colley win rank',
+            'colley goal rank',
+            'elo',
+            'skill',
+            'avg gf',
+            'avg ga',
+            'win streak',
+            'win prob',
+            'games',
+            'win pct',
+            'wins over expected'
+        ]
 
         self.players_to_show = visual_tools.MultiSelector(self,"Players")
         self.players_to_show.add_listener(self)
@@ -1028,7 +1053,7 @@ class GraphView(View):
         self.graph = None
         self.graph_display = None
 
-    def attach(self, stats:sc.StatCollector, dates=None, filter=None) -> None:
+    def attach(self, stats: statcollector.StatCollector, dates=None, game_filter=None) -> None:
         if not self.attached:
             self.attached = True
             self.stats = stats
@@ -1047,7 +1072,7 @@ class GraphView(View):
             self.graph_display.get_tk_widget().destroy()
         self.graphed = False
 
-    def update_value(self, name, value):
+    def update_value(self, _name, _value):
         # doesn't really matter what was updated, time to redraw the graph
         self.reset()
 
@@ -1087,10 +1112,10 @@ class GraphView(View):
                                             is_daily=self.x_choice.get_selected()=='date',by_wins=False,day_decay=self.decay_val.get_value())
         elif choice == 'elo':
             return elo.get_rankings_list(self.stats.filtered,self.get_x_cutoffs(),self.players_to_show.get_as_list(),
-                                         is_daily=self.x_choice.get_selected()=='date',init_val=self.elo_init_val.get_value(),k_val=self.elo_k_val.get_value())
+                                is_daily=self.x_choice.get_selected()=='date',init_val=self.elo_init_val.get_value(),k_val=self.elo_k_val.get_value())
         elif choice == 'skill':
             return myranks.get_rankings_list(self.stats.filtered,self.get_x_cutoffs(),self.players_to_show.get_as_list(),
-                                             is_daily=self.x_choice.get_selected()=='date',syst=myranks.SkillRating,name='Skill',alpha=self.alpha_val.get_value())
+                                is_daily=self.x_choice.get_selected()=='date',syst=myranks.SkillRating,name='Skill',alpha=self.alpha_val.get_value())
         elif choice == 'avg gf':
             return utils.get_player_lists(self.stats.filtered,utils.gf_avg_step,self.players_to_show.get_as_list(),
                                           self.get_x_cutoffs(),self.x_choice.get_selected()=='date',day_decay=self.decay_val.get_value(),
@@ -1126,10 +1151,14 @@ class GraphView(View):
             self.graph_display.get_tk_widget().destroy()
         self.graphed = True
 
-        self.graph = graphsyousee.create_foosball_graph(f'{self.y_choice.get_selected()} by {self.x_choice.get_selected()}',self.x_choice.get_selected(),self.y_choice.get_selected(),
-                                                        self.players_to_show.get_as_list(),
-                                                        self.get_x_axis(),
-                                                        self.get_y_axis())
+        self.graph = graphsyousee.create_foosball_graph(
+            f'{self.y_choice.get_selected()} by {self.x_choice.get_selected()}',
+            self.x_choice.get_selected(),
+            self.y_choice.get_selected(),
+            self.players_to_show.get_as_list(),
+            self.get_x_axis(),
+            self.get_y_axis()
+        )
         self.graph_display = FigureCanvasTkAgg(self.graph,self)
         #self.graph_display = tkagg.
 
@@ -1173,7 +1202,7 @@ class RecordsView(View):
             self.groups[time_frame].placed = True
             i += 1
 
-    def attach(self, stats:sc.StatCollector, dates:list[event_date.EventDate], filter) -> None:
+    def attach(self, stats: statcollector.StatCollector, dates:list[event_date.EventDate], game_filter) -> None:
         if not self.attached:
             self.stats = stats
             self.dates = dates
@@ -1267,7 +1296,7 @@ class TournamentView(View):
         self.creator.reset()
         self.creator.pack()
 
-    def attach(self, stats:sc.StatCollector, dates:list[event_date.EventDate]=None, filter:gamefilter.GameFilter=None) -> None:
+    def attach(self, stats: statcollector.StatCollector, dates:list[event_date.EventDate]=None, game_filter:gamefilter.GameFilter=None) -> None:
         if not self.attached:
             self.attached = True
             self.stats = stats
@@ -1310,24 +1339,24 @@ class TournamentInteractView(View):
         self.bracket_view.grid(row=1,column=0,sticky='news')
         self.tournament = None
 
-    def set_tournament(self, tournament:tournament.Tournament):
+    def set_tournament(self, t: tournament.Tournament):
         if self.tournament is not None:
             self.tournament.detach()
             self.tournament.remove_listener(self)
-        self.tournament = tournament
+        self.tournament = t
         self.tournament.attach(self.stats)
         self.tournament.add_listener(self)
         self.tournament.begin()
-        self.name.set(tournament.id)
+        self.name.set(t.id)
         self.bracket_view.detach()
-        self.bracket_view.attach(tournament)
+        self.bracket_view.attach(t)
 
         if self.tournament.is_over():
             self.winner_lbl.set_value(self.tournament.winner())
         else:
             self.winner_lbl.set_value("")
 
-    def update_tournament(self, id):
+    def update_tournament(self, _tournament_id):
         if self.tournament.round_over():
             self.tournament.advance()
             self.bracket_view.update()
@@ -1335,7 +1364,7 @@ class TournamentInteractView(View):
         if self.tournament.is_over():
             self.winner_lbl.set_value(self.tournament.winner())
 
-    def attach(self, stats:sc.StatCollector, dates:list[event_date.EventDate]=None, filter:gamefilter.GameFilter=None) -> None:
+    def attach(self, stats: statcollector.StatCollector, dates:list[event_date.EventDate]=None, game_filter:gamefilter.GameFilter=None) -> None:
         if not self.attached:
             self.attached = True
             self.stats = stats
@@ -1366,10 +1395,20 @@ class TournamentCreatorView(View):
         self.seed_selector = visual_tools.SingleSelector(top_frame, "Seeding", ["as entered","skill","random"], selected='as entered')
         self.seed_selector.grid(row=0,column=2,sticky='news')
 
-        self.type_selector = visual_tools.SingleSelector(top_frame, "Type", ["single elimination","round robin"],selected='single elimination') #,"double elimination","round robin"
+        self.type_selector = visual_tools.SingleSelector(
+            top_frame,
+            "Type",
+            ["single elimination","round robin"],
+            selected='single elimination'
+        ) #,"double elimination","round robin"
         self.type_selector.grid(row=0,column=3,sticky='news')
 
-        self.reseed_selector = visual_tools.SingleSelector(top_frame, "Round Seeding", ["round reseeding"],selected='round reseeding')#"fixed seeding",
+        self.reseed_selector = visual_tools.SingleSelector(
+            top_frame,
+            "Round Seeding",
+            ["round reseeding"],
+            selected='round reseeding'
+        )#"fixed seeding",
         self.reseed_selector.grid(row=0,column=4,sticky='news')
 
         c = 5
@@ -1391,14 +1430,21 @@ class TournamentCreatorView(View):
         for entry in self.player_entries:
             players.append(entry.get_entry())
 
-        t_type = tournament.Tournament.TYPE[self.type_selector.get_selected()]
-        seeding = tournament.Tournament.SEEDING[self.seed_selector.get_selected()]
+        t_type = tournament.TournamentElimination[self.type_selector.get_selected().upper()]
+        seeding = tournament.TournamentSeeding[self.seed_selector.get_selected().upper()]
         reseeding = self.reseed_selector.get_selected() == 'round reseeding'
         return tournament.Tournament(name, players, t_type, seeding, reseeding)
 
     def add_player_slot(self):
         num_players = len(self.player_entries)
-        self.player_entries.append(visual_tools.LabeledEntry(self,f'Player {num_players+1}', apply_btn=False, additional_buttons={'Remove':lambda : self.remove_player_slot(num_players)}))
+        self.player_entries.append(
+            visual_tools.LabeledEntry(
+                self,
+                f'Player {num_players+1}',
+                apply_btn=False,
+                additional_buttons={'Remove':lambda : self.remove_player_slot(num_players)}
+            )
+        )
         per_col = 7
         self.player_entries[-1].grid(row=num_players%per_col+1,column=num_players//per_col)
 
@@ -1411,7 +1457,7 @@ class TournamentCreatorView(View):
         self.player_entries.remove(self.player_entries[-1])
         return True
 
-    def attach(self, stats:sc.StatCollector, dates=None, filter=None) -> None:
+    def attach(self, stats: statcollector.StatCollector, dates=None, game_filter=None) -> None:
         if not self.attached:
             self.attached = True
             self.stats = stats
@@ -1459,7 +1505,7 @@ class IndividualView(View):
         self.ga = ttk.Label(stats_frm,text=0)
         self.ga.grid(row=1,column=3,sticky='news')
 
-    def attach(self, stats, dates, filter) -> None:
+    def attach(self, stats, dates, game_filter) -> None:
         self.individual.stats = stats
 
     def detach(self) -> None:

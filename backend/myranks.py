@@ -1,7 +1,7 @@
 import math
 import pandas as pd
 
-import backend.foosballgame as foosballgame
+from backend import foosballgame
 
 class PlayerSkill:
 
@@ -38,9 +38,6 @@ class RatingSystem:
     def get_game_rating(self, game, w_skill, l_skill) -> tuple[float]:
         raise RuntimeError("Not Implemented")
 
-    def __get_score_rating(self, game:foosballgame.FoosballGame) -> tuple[float]:
-        raise RuntimeError("Not Implemented")
-
     def normalize(self, ranks):
         raise RuntimeError("Not Implemented")
 
@@ -67,7 +64,6 @@ class RatingSystem:
         for player in self.players:
             ratings[player] = {'Name': player, self.name: self.get_rating(player)}
         return pd.DataFrame.from_dict(ratings,orient='index')
-
 
 class SimpleRating(RatingSystem):
 
@@ -136,12 +132,15 @@ def sort_rankings(rankings:list[PlayerSkill]) -> list[PlayerSkill]:
     rankings.sort(key=lambda x: x.skill, reverse=True)
     return rankings
 
-def print_rankings(rankings:list[PlayerSkill]) -> None:
-    for rank in rankings:
-        print(f"{rank.name:<10} {rank.skill:>.3f}")
-
-
-def get_rankings_list(games:list[foosballgame.FoosballGame], xlist:list, players:list[str], is_daily:bool, syst=SkillRating, name:str='Skill', alpha:float=0.5) -> dict[str:float]:
+def get_rankings_list(
+    games:list[foosballgame.FoosballGame],
+    xlist:list,
+    players:list[str],
+    is_daily:bool,
+    syst=SkillRating,
+    name:str='Skill',
+    alpha:float=0.5
+) -> dict[str:float]:
     """
     Returns the rankings formatted for graph output
     """

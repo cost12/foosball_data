@@ -75,7 +75,19 @@ class FoosballGame:
 
 class FoosballMatchup:
 
-    def __init__(self, home:str, away:str, id, home_color:str='B', date:datetime.date=None, *, home_score:int=0, away_score:int=0, game_to:int=10, win_by=1):
+    def __init__(
+        self,
+        home:str,
+        away:str,
+        matchup_id,
+        home_color:str='B',
+        date:datetime.date=None,
+        *,
+        home_score:int=0,
+        away_score:int=0,
+        game_to:int=10,
+        win_by=1
+    ):
         self.home_team = home
         self.away_team = away
         self.home_color = home_color
@@ -84,7 +96,7 @@ class FoosballMatchup:
         self.away_score = away_score
         self.game_to = game_to
         self.win_by = win_by
-        self.id = id
+        self.id = matchup_id
 
         self.listeners = []
 
@@ -101,7 +113,15 @@ class FoosballMatchup:
                 self.date = date
             elif self.date is None:
                 return None
-            return FoosballGame(self.winner(),self.loser(),self.get_score(self.winner()),self.get_score(self.loser()),self.get_color(self.winner()),self.date,number)
+            return FoosballGame(
+                self.winner(),
+                self.loser(),
+                self.get_score(self.winner()),
+                self.get_score(self.loser()),
+                self.get_color(self.winner()),
+                self.date,
+                number,
+            )
         return None
 
     def reset(self):
@@ -434,7 +454,10 @@ def game_probability(games, game, or_less_likely_game=False,given_total_games_pl
     return game_prob(p1prob, game, or_less_likely_game, games_played, given_total_games_played)
 
 def game_prob(p1_goal_prob, game, or_less_likely_game=False, games_played=1, given_total_games_played=False):
-    g_prob = p1_goal_prob**(game.winner_score-1) * (1-p1_goal_prob)**game.loser_score * math.comb(game.winner_score-1+game.loser_score,game.loser_score ) * p1_goal_prob
+    g_prob = p1_goal_prob**(game.winner_score-1) * \
+             (1-p1_goal_prob)**game.loser_score * \
+             math.comb(game.winner_score-1+game.loser_score, game.loser_score) * \
+             p1_goal_prob
 
     less_likely_prob = 0
     if or_less_likely_game:

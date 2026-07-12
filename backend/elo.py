@@ -2,7 +2,7 @@ import pandas as pd
 
 import backend.foosballgame as foosballgame
 
-class ELO_Calculator():
+class EloCalculator():
     """
     This class calculates and stores elo ratings for players across foosball games
 
@@ -87,12 +87,20 @@ class ELO_Calculator():
             return self.initial_rating
         return int(self.goal_ratings[player])
 
-def get_rankings_list(games:list[foosballgame.FoosballGame], xlist:list, players:list[str], is_daily:bool, by_wins:bool = True,*,init_val=1500,k_val=32) -> dict[str:float]:
+def get_rankings_list(
+    games:list[foosballgame.FoosballGame],
+    xlist:list, players:list[str],
+    is_daily:bool,
+    by_wins:bool = True,
+    *,
+    init_val=1500,
+    k_val=32
+) -> dict[str:float]:
     """
     Returns the rankings formatted for graph output
     """
     rankings = {}
-    elo_tracker = ELO_Calculator(initial_rating=init_val,k_value=k_val)
+    elo_tracker = EloCalculator(initial_rating=init_val,k_value=k_val)
     game_ind = 0
 
     for player in players:

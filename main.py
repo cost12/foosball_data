@@ -21,7 +21,17 @@ dictConfig({
     },
     "root": {
         "handlers": ["console", "file"],
-        "level": "DEBUG"
+        "level": "INFO"
+    },
+    "loggers": {
+        "backend": {
+            "level" : "DEBUG",
+            "propagate" : True,
+        },
+        "frontend": {
+            "level" : "DEBUG",
+            "propagate" : True,
+        },
     }
 })
 

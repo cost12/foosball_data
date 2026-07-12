@@ -29,8 +29,8 @@ class StreakKeeper:
 
 class Streak:
 
-    def __init__(self,len,name):
-        self.length = len
+    def __init__(self, length, name):
+        self.length = length
         self.name = name
 
     def __str__(self) -> str:

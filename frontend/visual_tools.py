@@ -1,20 +1,20 @@
 import tkinter as tk
 from tkinter import ttk
-import tkinter.constants as tk_constants 
 import platform
+from typing import Callable
 
 from typing import Union
 
 import constants
-import backend.foosballgame as foosballgame
-import backend.tournament as tournament
-import backend.records as records
+from backend import foosballgame
+from backend import tournament
+from backend import records
 
 class MultiSelector(ttk.Frame):
     """ TODO: should duplicates be allowed? right now they are
     Select values from a list of values
     """
-    def __init__(self, frm:ttk.Frame, name:str, options:list[str] = None,*, max_len:int=20, apply_btn:bool=False, sorted:bool=True) -> None:
+    def __init__(self, frm:ttk.Frame, name:str, options:list[str] = None,*, max_len:int=20, apply_btn:bool=False, is_sorted:bool=True) -> None:
         super().__init__(frm, borderwidth=2, relief='groove')
 
         self.frm = frm
@@ -24,7 +24,7 @@ class MultiSelector(ttk.Frame):
         else:
             self.options = options
         self.apply_btn = apply_btn
-        self.sorted = sorted
+        self.sorted = is_sorted
         self.max_len = max_len
 
         self.listeners = []
@@ -103,7 +103,16 @@ class MultiSelector(ttk.Frame):
             if self.apply_btn:
                 self.check_btns.append(ttk.Checkbutton(self, text=option, variable=self.selected[-1], onvalue=1, offvalue=0))
             else:
-                self.check_btns.append(ttk.Checkbutton(self, text=option, variable=self.selected[-1], onvalue=1, offvalue=0, command=self.value_update))
+                self.check_btns.append(
+                    ttk.Checkbutton(
+                        self,
+                        text=option,
+                        variable=self.selected[-1],
+                        onvalue=1,
+                        offvalue=0,
+                        command=self.value_update
+                    )
+                )
             self.check_btns[-1].state(['!alternate'])
             self.check_btns[-1].state(['selected'])
             self.selected[-1].set(1)
@@ -131,14 +140,14 @@ class SingleSelector(ttk.Frame):
     """ TODO: should duplicates be allowed? right now they are
     Select a value from a list of values
     """
-    def __init__(self, frm:ttk.Frame, name:str, options:list, *, selected:str=None, apply_btn:bool=False, sorted:bool=True) -> None:
+    def __init__(self, frm:ttk.Frame, name:str, options:list, *, selected:str=None, apply_btn:bool=False, is_sorted:bool=True) -> None:
         super().__init__(frm, borderwidth=2, relief='groove')
 
         self.frm = frm
         self.name = name
         self.options = options
         self.apply_btn = apply_btn
-        self.sorted = sorted
+        self.sorted = is_sorted
 
         self.listeners = []
 
@@ -231,10 +240,24 @@ class SingleSelector(ttk.Frame):
 
 class RangeAdjustor(ttk.Frame):
 
-    def __init__(self, frm:ttk.Frame, name:str, low_val:int=0, high_val:int=10, min_val:Union[int,None]=None, max_val:Union[int,None]=None,*,plus_minus_btns=False,jump=1):
+    def __init__(
+        self,
+        frm:ttk.Frame,
+        name:str,
+        low_val:int=0,
+        high_val:int=10,
+        min_val:Union[int,None]=None,
+        max_val:Union[int,None]=None,
+        *,
+        plus_minus_btns=False,
+        jump=1
+    ):
         super().__init__(frm, borderwidth=2, relief='sunken')
 
-        assert ((min_val is not None and min_val <= low_val and low_val <= high_val) or (min_val is None and low_val <= high_val))  and (max_val is not None and high_val <= max_val or max_val is None)
+        assert (
+            (min_val is not None and min_val <= low_val and low_val <= high_val) or \
+            (min_val is None and low_val <= high_val)
+        )  and (max_val is not None and high_val <= max_val or max_val is None)
 
         self.frm = frm
         self.name = name
@@ -289,7 +312,19 @@ class RangeAdjustor(ttk.Frame):
 
 class ValueAdjustor(ttk.Frame):
 
-    def __init__(self, frm:ttk.Frame, name:str, cur_val:float=0, min_val:Union[float,None]=None, max_val:Union[float,None]=None,*, is_int:bool=True, apply_btn=False, plus_minus_btns=False,jump=1) -> None:
+    def __init__(
+        self,
+        frm:ttk.Frame,
+        name:str,
+        cur_val:float=0,
+        min_val:Union[float,None]=None,
+        max_val:Union[float,None]=None,
+        *,
+        is_int:bool=True,
+        apply_btn=False,
+        plus_minus_btns=False,
+        jump=1
+    ) -> None:
         super().__init__(frm, borderwidth=2, relief='raised')
 
         assert ((min_val is not None and min_val <= cur_val) or min_val is None) and ((max_val is not None and cur_val <= max_val) or max_val is None)
@@ -407,7 +442,8 @@ class ButtonGroup(ttk.Frame):
         self.buttons = dict[str,ttk.Button]()
 
         self.select_style=ttk.Style()
-        self.select_style.map("Mod.TButton", background = [("active", "red"), ("!active", "blue")])#, foreground = [("active", "yellow"), ("!active", "green")])
+        self.select_style.map("Mod.TButton", background = [("active", "red"), ("!active", "blue")])
+        #, foreground = [("active", "yellow"), ("!active", "green")])
 
         self.__display_buttons()
 
@@ -455,7 +491,7 @@ class ButtonGroup(ttk.Frame):
 
 class LabeledEntry(ttk.Frame):
 
-    def __init__(self, frm:ttk.Frame, label:str, apply_btn:bool=True,*,additional_buttons:dict[str,]=None):#TODO figure out how to type hint functions
+    def __init__(self, frm:ttk.Frame, label:str, apply_btn:bool=True,*,additional_buttons:dict[str,Callable]=None):
         super().__init__(frm, borderwidth=2, relief='groove')
 
         self.label = label
@@ -544,10 +580,10 @@ class BracketView(ttk.Frame):
         self.tournament = None
         self.views=list[MatchupView]()
 
-    def attach(self, tournament:tournament.Tournament) -> None:
+    def attach(self, t: tournament.Tournament) -> None:
         if not self.attached:
             self.attached = True
-            self.tournament = tournament
+            self.tournament = t
 
             for view in self.views:
                 view.destroy()
@@ -685,9 +721,9 @@ class PerformanceGroup(ttk.Frame):
         self.n = n_best
         c = 0
         self.performances = dict[str,PerformanceView]()
-        for name,performances in groups:
-            self.performances[name] = PerformanceView(self, name, self.n, performances)
-            self.performances[name].grid(row=1,column=c,sticky='news')
+        for n, performances in groups:
+            self.performances[n] = PerformanceView(self, n, self.n, performances)
+            self.performances[n].grid(row=1,column=c,sticky='news')
             c += 1
 
     def set_performances(self, name:str, performances:records.Performance):
@@ -703,34 +739,33 @@ class ScrollFrame(ttk.Frame):
     def __init__(self, parent):
         super().__init__(parent, borderwidth=2, relief='groove') # create a frame (self)
 
-        self.canvas = tk.Canvas(self, borderwidth=0, background="#ffffff")          #place canvas on self
-        self.viewPort = ttk.Frame(self.canvas)                                      #place a frame on the canvas, this frame will hold the child widgets
-        self.vsb = ttk.Scrollbar(self, orient="vertical", command=self.canvas.yview) #place a scrollbar on self
-        self.canvas.configure(yscrollcommand=self.vsb.set)                          #attach scrollbar action to scroll of canvas
+        self.canvas = tk.Canvas(self, borderwidth=0, background="#ffffff")
+        self.view_port = ttk.Frame(self.canvas)
+        self.vsb = ttk.Scrollbar(self, orient="vertical", command=self.canvas.yview)
+        self.canvas.configure(yscrollcommand=self.vsb.set)
 
-        self.vsb.pack(side="right", fill="y",expand=False)                                       #pack scrollbar to right of self
-        self.canvas.pack(side="left", fill="both", expand=True)                     #pack canvas to left of self and expand to fil
-        self.canvas_window = self.canvas.create_window((4,4), window=self.viewPort, anchor="nw",            #add view port frame to canvas
-                                  tags="self.viewPort")
+        self.vsb.pack(side="right", fill="y",expand=False)
+        self.canvas.pack(side="left", fill="both", expand=True)
+        self.canvas_window = self.canvas.create_window((4,4), window=self.view_port, anchor="nw",
+                                  tags="self.view_port")
 
-        self.viewPort.bind("<Configure>", self.onFrameConfigure)                       #bind an event whenever the size of the viewPort frame changes.
-        self.canvas.bind("<Configure>", self.onCanvasConfigure)                       #bind an event whenever the size of the canvas frame changes.
+        self.view_port.bind("<Configure>", self.on_frame_configure)
+        self.canvas.bind("<Configure>", self.on_canvas_configure)
 
-        self.viewPort.bind('<Enter>', self.onEnter)                                 # bind wheel events when the cursor enters the control
-        self.viewPort.bind('<Leave>', self.onLeave)                                 # unbind wheel events when the cursorl leaves the control
+        self.view_port.bind('<Enter>', self.on_enter)
+        self.view_port.bind('<Leave>', self.on_leave)
 
-        self.onFrameConfigure(None)                                                 #perform an initial stretch on render, otherwise the scroll region has a tiny border until the first resize
+        self.on_frame_configure(None)
 
-    def onFrameConfigure(self, event):
+    def on_frame_configure(self, _event):
         '''Reset the scroll region to encompass the inner frame'''
-        self.canvas.configure(scrollregion=self.canvas.bbox("all"))                 #whenever the size of the frame changes, alter the scroll region respectively.
-
-    def onCanvasConfigure(self, event):
+        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+    def on_canvas_configure(self, event):
         '''Reset the canvas window to encompass inner frame when required'''
         canvas_width = event.width
-        self.canvas.itemconfig(self.canvas_window, width = canvas_width)            #whenever the size of the canvas changes alter the window region respectively.
+        self.canvas.itemconfig(self.canvas_window, width = canvas_width)
 
-    def onMouseWheel(self, event):                                                  # cross platform scroll wheel event
+    def on_mouse_wheel(self, event):
         if platform.system() == 'Windows':
             self.canvas.yview_scroll(int(-1* (event.delta/120)), "units")
         elif platform.system() == 'Darwin':
@@ -741,14 +776,14 @@ class ScrollFrame(ttk.Frame):
             elif event.num == 5:
                 self.canvas.yview_scroll( 1, "units" )
 
-    def onEnter(self, event):                                                       # bind wheel events when the cursor enters the control
+    def on_enter(self, _event):
         if platform.system() == 'Linux':
-            self.canvas.bind_all("<Button-4>", self.onMouseWheel)
-            self.canvas.bind_all("<Button-5>", self.onMouseWheel)
+            self.canvas.bind_all("<Button-4>", self.on_mouse_wheel)
+            self.canvas.bind_all("<Button-5>", self.on_mouse_wheel)
         else:
-            self.canvas.bind_all("<MouseWheel>", self.onMouseWheel)
+            self.canvas.bind_all("<MouseWheel>", self.on_mouse_wheel)
 
-    def onLeave(self, event):                                                       # unbind wheel events when the cursorl leaves the control
+    def on_leave(self, _event):
         if platform.system() == 'Linux':
             self.canvas.unbind_all("<Button-4>")
             self.canvas.unbind_all("<Button-5>")

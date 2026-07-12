@@ -41,7 +41,8 @@ class StatCollector:
             'schedule':  ['Name', 'G', 'W', 'L', 'NW', 'NL', 'NW PCT', 'NSOS', 'NSOV', 'NSINDEX', 'SOS', 'SOV', 'SINDEX'],
             'matchups':  ['Name', 'Opponent', 'G', 'W', 'L', 'W PCT', 'STRK', 'GF', 'GA', 'G PCT', 'LWS', 'LLS', 'W PROB', 'WOE'],
             #'m ratings': ['Name', 'Opponent', 'G', 'W', 'L', 'W PROB', 'WOE'], \
-            'games':     ['Winner', 'Loser', 'Winner Score', 'Loser Score', 'Winner Color', 'Date', 'Number', 'G PROB', 'LL PROB', 'LL EXIST PROB', 'EXIST PROB']
+            'games':     ['Winner', 'Loser', 'Winner Score', 'Loser Score', 'Winner Color', 'Date', 'Number',
+                          'G PROB', 'LL PROB', 'LL EXIST PROB', 'EXIST PROB']
         }
         self.stats_from_players : set[str] = {'standings', 'ratings', 'schedule', 'streaks'}
         self.stats_from_matchups : set[str] = {'matchups', 'm ratings', 'm streaks'}
@@ -56,7 +57,7 @@ class StatCollector:
         #self.matchup_dict = {}
 
         # ratings
-        self.elo_tracker = elo.ELO_Calculator()
+        self.elo_tracker = elo.EloCalculator()
         self.skill_tracker = myranks.SkillRating('Skill')
 
         # dataframes
@@ -216,7 +217,7 @@ class StatCollector:
     def __init_dicts(self,games:list[foosballgame.FoosballGame]) -> None:
         self.individual_dict = {}
         self.matchup_dict = {}
-        self.elo_tracker = elo.ELO_Calculator()
+        self.elo_tracker = elo.EloCalculator()
         self.skill_tracker = myranks.SkillRating('Skill')
         for game in games:
             self.add_game(game, new_game=False)
@@ -256,9 +257,25 @@ class StatCollector:
 
         # TODO: find a way to make this work as a double dict
         if game.winner+game.loser not in self.matchup_dict:
-            self.matchup_dict[game.winner+game.loser] = {'Name':game.winner,'Opponent':game.loser,'W':0,'L':0,'GF':0,'GA':0,'Streak':gameinfo.StreakKeeper()}
+            self.matchup_dict[game.winner+game.loser] = {
+                'Name':game.winner,
+                'Opponent':game.loser,
+                'W':0,
+                'L':0,
+                'GF':0,
+                'GA':0,
+                'Streak':gameinfo.StreakKeeper()
+            }
         if game.loser+game.winner not in self.matchup_dict:
-            self.matchup_dict[game.loser+game.winner] = {'Name':game.loser,'Opponent':game.winner,'W':0,'L':0,'GF':0,'GA':0,'Streak':gameinfo.StreakKeeper()}
+            self.matchup_dict[game.loser+game.winner] = {
+                'Name':game.loser,
+                'Opponent':game.winner,
+                'W':0,
+                'L':0,
+                'GF':0,
+                'GA':0,
+                'Streak':gameinfo.StreakKeeper()
+            }
 
         for w,l in [(game.winner, game.loser),(game.winner_color,game.loser_color())]:
             self.individual_dict[w]['W'] += 1
@@ -358,8 +375,9 @@ class StatCollector:
         elif stat in self.stats_from_matchups:
             # lots of tie breakers
             return self.matchup_stats[self.stat_categories[stat]].loc[(self.matchup_stats['W'] >  self.matchup_stats['L']) |
-                                         ((self.matchup_stats['W'] == self.matchup_stats['L']) & (self.matchup_stats['GF'] > self.matchup_stats['GA'])) |
-                                         ((self.matchup_stats['W'] == self.matchup_stats['L']) & (self.matchup_stats['GF'] == self.matchup_stats['GA']) & (self.matchup_stats['STRK'] < gameinfo.Streak(1,'W')))]
+                ((self.matchup_stats['W'] == self.matchup_stats['L']) & (self.matchup_stats['GF'] > self.matchup_stats['GA'])) |
+                ((self.matchup_stats['W'] == self.matchup_stats['L']) & (self.matchup_stats['GF'] == self.matchup_stats['GA']) &
+                (self.matchup_stats['STRK'] < gameinfo.Streak(1,'W')))]
         elif stat in self.stats_from_games:
             return self.game_stats[self.stat_categories[stat]]
         elif stat in self.stat_categories:
@@ -374,14 +392,14 @@ class StatCollector:
         elif df == 'games':
             return self.game_stats[['Number', stat]]
 
-    def get_elo(self) -> elo.ELO_Calculator:
+    def get_elo(self) -> elo.EloCalculator:
         self.__uses_dicts()
         return self.elo_tracker
 
-    def filter_by_date(self,event_date:event_date.EventDate, make_new:bool=False):
+    def filter_by_date(self, date: event_date.EventDate, make_new: bool=False):
         filtered = []
         for game in self.games:
-            if event_date.contains_date(game.date):
+            if date.contains_date(game.date):
                 filtered.append(game)
 
         if make_new:
@@ -391,10 +409,10 @@ class StatCollector:
                 self.filtered = filtered
                 self.refiltered = True
 
-    def apply_filter(self, filter:gamefilter.GameFilter, make_new:bool=False) -> None:
+    def apply_filter(self, game_filter: gamefilter.GameFilter, make_new: bool=False) -> None:
         filtered = []
         for game in self.games:
-            if filter.predicate(game):
+            if game_filter.predicate(game):
                 filtered.append(game)
         if make_new:
             return StatCollector(filtered)
@@ -403,15 +421,15 @@ class StatCollector:
                 self.filtered = filtered
                 self.refiltered = True
 
-    def set_games(self, games:list[foosballgame.FoosballGame]) -> None:
+    def set_games(self, games: list[foosballgame.FoosballGame]) -> None:
         self.games = games
         self.filtered = games
         self.__recalculate()
 
-    def count_filtered(self, filter:gamefilter.GameFilter) -> int:
+    def count_filtered(self, game_filter: gamefilter.GameFilter) -> int:
         count = 0
         for game in self.games:
-            if filter.predicate(game):
+            if game_filter.predicate(game):
                 count += 1
         return count
 
@@ -419,7 +437,6 @@ class StatCollector:
         self.filtered = list(self.games)
         self.refiltered = True
 
-    # TODO: consolidate magic numbers
     def min_score_possible(self) -> int:
         return 0
 
@@ -441,13 +458,25 @@ class StatCollector:
         return max_ach
 
     def min_num(self) -> int:
-        return self.games[0].number
+        if len(self.games) > 0:
+            return self.games[0].number
+        logger.debug("No games exist")
+        return -1
 
     def max_num(self) -> int:
-        return self.games[-1].number
+        if len(self.games) > 0:
+            return self.games[-1].number
+        logger.debug("No games exist")
+        return -1
 
     def min_num_selected(self) -> int:
-        return self.filtered[0].number
+        if len(self.filtered) > 0:
+            return self.filtered[0].number
+        logger.debug("No games selected")
+        return -1
 
     def max_num_selected(self) -> int:
-        return self.filtered[-1].number
+        if len(self.filtered) > 0:
+            return self.filtered[-1].number
+        logger.debug("No games selected")
+        return -1

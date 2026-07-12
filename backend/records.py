@@ -1,32 +1,37 @@
 import datetime
+from enum import Enum, auto
 
 import pandas as pd
 
-import backend.statcollector as sc
-import backend.event_date as event_date
+from backend import statcollector
+from backend import event_date
+
+class Timing(Enum):
+    DAY = auto()
+    SEMESTER = auto()
+    ALL = auto()
 
 class TimeFrame:
 
-    def __init__(self, name:str, type:str):
+    def __init__(self, name: str, timing: Timing):
         self.name = name
-        self.type = type
+        self.type = timing
 
     def selector(self) -> bool:
         if self.is_day():
             return 'Date'
-        elif self.is_semester():
+        if self.is_semester():
             return 'Semester'
-        else:
-            return None
+        return None
 
     def is_day(self) -> bool:
-        return self.type.lower() == 'day'
+        return self.type == Timing.DAY
 
     def is_semester(self) -> bool:
-        return self.type.lower() == 'semester'
+        return self.type == Timing.SEMESTER
 
     def is_all(self) -> bool:
-        return self.type.lower() == 'all'
+        return self.type == Timing.ALL
 
     def get_string(self) -> str:
         if self.is_day() and not self.name == 'day':
@@ -36,7 +41,17 @@ class TimeFrame:
 
 class Performance:
 
-    def __init__(self, category:str, time_frame:TimeFrame, player_name:str, result:float,*, semester:str=None, on_date:datetime.date=None, to_date:datetime.date=None):
+    def __init__(
+        self,
+        category:str,
+        time_frame:TimeFrame,
+        player_name:str,
+        result:float,
+        *,
+        semester:str=None,
+        on_date:datetime.date=None,
+        to_date:datetime.date=None
+    ):
         self.category = category
         self.time_frame = time_frame
         self.player = player_name
@@ -58,11 +73,11 @@ class Records:
 
     def __init__(self):
         self.stats = None
-        self.semesters = dict[str,event_date.EventDate]()
+        self.semesters : dict[str,event_date.EventDate] = {}
         self.attached = False
 
-        self.categories = dict[str,str]({'wins':'W', 'goals':'GF', 'games':'G', 'win streak':'LWS'})
-        self.time_frames = list[TimeFrame]([TimeFrame('all','all'), TimeFrame('semester','semester'), TimeFrame('day','day')])
+        self.categories : dict[str,str] = {'wins':'W', 'goals':'GF', 'games':'G', 'win streak':'LWS'}
+        self.time_frames : list[TimeFrame] = [TimeFrame('all', Timing.ALL), TimeFrame('semester', Timing.SEMESTER), TimeFrame('day', Timing.DAY)]
 
     def get_categories(self):
         return list(self.categories.keys())
@@ -85,20 +100,20 @@ class Records:
                 return performances
             elif time_frame.name == 'semester':
                 stats = self.stats.get_stats('games')
-                stats['Semester'] = stats['Date'].apply(lambda date: event_date.get_event(date,list(self.semesters.values())).name)
+                stats['Semester'] = stats['Date'].apply(lambda date: event_date.get_event(date, list(self.semesters.values())).name)
             elif time_frame.name == 'day':
                 stats = self.stats.get_stats('games')
             elif time_frame.is_day():
                 stats = self.stats.get_stats('games')
                 semester = time_frame.name
                 stats['Filter'] = stats['Date'].apply(self.semesters[semester].contains_date)
-                stats = stats[stats['Filter']==True]
+                stats = stats[stats['Filter'] == True]
             elif time_frame.is_semester():
                 stats = self.stats.get_stats('games')
                 semester = time_frame.name
-                stats['Semester'] = stats['Date'].apply(lambda date: event_date.get_event(date,list(self.semesters.values())).name)
+                stats['Semester'] = stats['Date'].apply(lambda date: event_date.get_event(date, list(self.semesters.values())).name)
                 stats['Filter'] = stats['Date'].apply(self.semesters[semester].contains_date)
-                stats = stats[stats['Filter']==True]
+                stats = stats[stats['Filter'] == True]
 
             if not time_frame.is_all():
                 if category == 'wins':
@@ -107,10 +122,26 @@ class Records:
                     performances = []
                     for i in range(len(best.index)):
                         if time_frame.is_day():
-                            performances.append(Performance(category,time_frame,best.iloc[i]['Winner'],best.iloc[i][self.categories[category]],on_date=best.iloc[i][time_frame.selector()]))
+                            performances.append(
+                                Performance(
+                                    category,
+                                    time_frame,
+                                    best.iloc[i]['Winner'],
+                                    best.iloc[i][self.categories[category]],
+                                    on_date=best.iloc[i][time_frame.selector()]
+                                )
+                            )
                         else: # Semester
                             #best['First'] =
-                            performances.append(Performance(category,time_frame,best.iloc[i]['Winner'],best.iloc[i][self.categories[category]],semester=best.iloc[i][time_frame.selector()]))
+                            performances.append(
+                                Performance(
+                                    category,
+                                    time_frame,
+                                    best.iloc[i]['Winner'],
+                                    best.iloc[i][self.categories[category]],
+                                    semester=best.iloc[i][time_frame.selector()]
+                                )
+                            )
                     return performances
                 elif category == 'goals':
                     w_goals = stats.groupby(['Winner', time_frame.selector()])['Winner Score'].sum().reset_index()
@@ -125,9 +156,25 @@ class Records:
                     performances = []
                     for i in range(len(best.index)):
                         if time_frame.is_day():
-                            performances.append(Performance(category,time_frame,best.iloc[i]['Name'],best.iloc[i][self.categories[category]],on_date=best.iloc[i][time_frame.selector()]))
+                            performances.append(
+                                Performance(
+                                    category,
+                                    time_frame,
+                                    best.iloc[i]['Name'],
+                                    best.iloc[i][self.categories[category]],
+                                    on_date=best.iloc[i][time_frame.selector()]
+                                )
+                            )
                         else: # Semester
-                            performances.append(Performance(category,time_frame,best.iloc[i]['Name'],best.iloc[i][self.categories[category]],semester=best.iloc[i][time_frame.selector()]))
+                            performances.append(
+                                Performance(
+                                    category,
+                                    time_frame,
+                                    best.iloc[i]['Name'],
+                                    best.iloc[i][self.categories[category]],
+                                    semester=best.iloc[i][time_frame.selector()]
+                                )
+                            )
                     return performances
                 elif category == 'games':
                     wins =   stats.groupby(['Winner', time_frame.selector()]).size().reset_index(name='wins')
@@ -142,9 +189,25 @@ class Records:
                     performances = []
                     for i in range(len(best.index)):
                         if time_frame.is_day():
-                            performances.append(Performance(category,time_frame,best.iloc[i]['Name'],best.iloc[i][self.categories[category]],on_date=best.iloc[i][time_frame.selector()]))
+                            performances.append(
+                                Performance(
+                                    category,
+                                    time_frame,
+                                    best.iloc[i]['Name'],
+                                    best.iloc[i][self.categories[category]],
+                                    on_date=best.iloc[i][time_frame.selector()]
+                                )
+                            )
                         else: # Semester
-                            performances.append(Performance(category,time_frame,best.iloc[i]['Name'],best.iloc[i][self.categories[category]],semester=best.iloc[i][time_frame.selector()]))
+                            performances.append(
+                                Performance(
+                                    category,
+                                    time_frame,
+                                    best.iloc[i]['Name'],
+                                    best.iloc[i][self.categories[category]],
+                                    semester=best.iloc[i][time_frame.selector()]
+                                )
+                            )
                     return performances
                 elif category == 'win streak':
                     return self.__get_top_win_streaks(stats, time_frame, n)
@@ -226,19 +289,19 @@ class Records:
         counts.clear()
         return cutoff
 
-    def attach(self, stats:sc.StatCollector, semesters:list[event_date.EventDate]):
+    def attach(self, stats: statcollector.StatCollector, semesters: list[event_date.EventDate]):
         if not self.attached:
             self.attached = True
             self.stats = stats
 
             for semester in semesters:
                 self.semesters[semester.name] = semester
-                self.time_frames.append(TimeFrame(semester.name,'semester'))
-                self.time_frames.append(TimeFrame(semester.name,'day'))
+                self.time_frames.append(TimeFrame(semester.name, Timing.SEMESTER))
+                self.time_frames.append(TimeFrame(semester.name, Timing.DAY))
 
     def detach(self):
         self.attached = False
         self.stats = None
         self.semesters.clear()
 
-        self.time_frames = list[TimeFrame]([TimeFrame('all','all'), TimeFrame('semester','semester'), TimeFrame('day','day')])
+        self.time_frames : list[TimeFrame] = [TimeFrame('all', Timing.ALL), TimeFrame('semester', Timing.SEMESTER), TimeFrame('day', Timing.DAY)]

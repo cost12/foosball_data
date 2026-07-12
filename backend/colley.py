@@ -80,16 +80,8 @@ def __get_matrices(games, players, by_wins = True, weighting = None):
 
 # give a weight to each game depending on how long ago it was
 # optionally take into account if players have played recently
-def get_weights(data, weight_recent = True, initial_warmup = False, consider_warmup = False, absence_decay = 1, warmup_rate = 1):
-    pass
-
-def nice_print(rankings):
-    to_print = list()
-    for name in rankings.keys():
-        to_print.append("%.4f" % rankings[name] + " " + name)
-    to_print.sort(reverse = True)
-    for line in to_print:
-        print("\t" + line)
+#def get_weights(data, weight_recent = True, initial_warmup = False, consider_warmup = False, absence_decay = 1, warmup_rate = 1):
+#   pass
 
 def update_matrices(game,c:np.ndarray,b:np.ndarray,players:list[str],weight:float,by_wins:bool):
     w_index = players.index(game.winner)
@@ -116,7 +108,17 @@ def update_matrices(game,c:np.ndarray,b:np.ndarray,players:list[str],weight:floa
         b[w_index] -= (l_score) * weight
         b[l_index] += (l_score) * weight
 
-def get_rankings_list(games:list, xlist:list, sel_players:list[str], all_players:list[str], is_daily:bool, by_wins:bool,*, day_decay:float=1, game_decay:float=1) -> dict[str:float]:
+def get_rankings_list(
+    games:list,
+    xlist:list,
+    sel_players:list[str],
+    all_players:list[str],
+    is_daily:bool,
+    by_wins:bool,
+    *,
+    day_decay:float=1,
+    game_decay:float=1
+) -> dict[str:float]:
     rankings = {}
 
     num_players = len(all_players)

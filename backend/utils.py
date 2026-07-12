@@ -2,9 +2,9 @@ import backend.foosballgame as foosballgame
 
 class SheetIdentifier:
 
-    def __init__(self, name, id, sheet, csv = None) -> None:
+    def __init__(self, name, sheet_id, sheet, csv = None) -> None:
         self.name = name          # readable name
-        self.id = id              # id of shared sheet
+        self.id = sheet_id        # id of shared sheet
         self.sheet_name = sheet   # name of sheet within the google sheets doc
         self.csv_name = csv       # name of the csv associated with the google sheets
 
@@ -41,7 +41,7 @@ class Tracker(dict):
         return self.__mul__(num)
 
     def times(self, num):
-        self.__mul__(num)
+        return self * num
 
 def wins_step(game, totals):
     totals[game.winner] += 1
@@ -137,7 +137,7 @@ def streaks_step(game, totals):
     else:
         totals[game.loser] = -1
 
-def get_player_lists(games, step_func, players, x_list, is_daily,*, combine=lambda x:x, day_decay:float=1, game_decay:float=1, last_n:int=None):
+def get_player_lists(games, step_func, players, x_list, is_daily,*, combine=lambda x:x, day_decay:float=1, game_decay:float=1):
     totals = Tracker()
     player_lists = {}
     for player in players:
