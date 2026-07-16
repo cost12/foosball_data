@@ -32,7 +32,7 @@ class StatCollector:
         self.games_added = True
 
         # games for which stats are collected
-        self.games = list[foosballgame.FoosballGame](games)
+        self.games : list[foosballgame.FoosballGame] = list(games)
 
         # stat categories that are collected
         self.stat_categories : dict[str,list[str]] = {

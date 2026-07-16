@@ -9,23 +9,20 @@ from backend import utils
 
 logger = logging.getLogger(__name__)
 
-SHEET_ID = '1hdM3dleaHsLLUpqnYBnNgiaK8rx9i-9TK4qdZafdz-0'
-GAME_SHEET = '1v1'
-DATE_SHEET = 'SemesterDates'
 GAME_FILENAME = 'data/foosball_data.txt'
 DATE_FILENAME = 'data/semester_dates.txt'
 
 GAME_OPTIONS_FILENAME = 'data/games_options.txt'
 DATE_OPTIONS_FILENAME = 'data/dates_options.txt'
 
-def read_in_dates_from_sheets(sheets=SHEET_ID, sheet_name = DATE_SHEET, copy_to_csv=False,filename=DATE_FILENAME):
+def read_in_dates_from_sheets(sheets, sheet_name, copy_to_csv=False, filename=DATE_FILENAME):
     url = f'https://docs.google.com/spreadsheets/d/{sheets}/gviz/tq?tqx=out:csv&sheet={sheet_name}'
     date_df = pd.read_csv(url)
     date_df = clean_date_df(date_df)
     dates = read_df_to_dates(date_df)
 
     if copy_to_csv:
-        date_df.to_csv(filename,index=False)
+        date_df.to_csv(filename, index=False)
     return dates
 
 def read_in_dates_from_csv(filename=DATE_FILENAME):
@@ -33,7 +30,7 @@ def read_in_dates_from_csv(filename=DATE_FILENAME):
     date_df = clean_date_df(date_df)
     return read_df_to_dates(date_df)
 
-def read_in_games_from_sheets(sheets=SHEET_ID, sheet_name = GAME_SHEET, copy_to_csv=False,filename=GAME_FILENAME):
+def read_in_games_from_sheets(sheets, sheet_name, copy_to_csv=False,filename=GAME_FILENAME):
     url = f'https://docs.google.com/spreadsheets/d/{sheets}/gviz/tq?tqx=out:csv&sheet={sheet_name}'
     game_df = pd.read_csv(url)
     logger.debug("%s game size loaded", game_df.shape)

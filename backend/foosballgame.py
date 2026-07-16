@@ -36,7 +36,6 @@ class Matchup:
             self.player1, self.player2 = self.player2, self.player1
             self.p1_wins, self.p2_wins = self.p2_wins, self.p1_wins
 
-
 class FoosballGame:
 
     def __init__(self, w, l, ws, ls, wc, d, n):

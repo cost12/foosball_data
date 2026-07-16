@@ -1,0 +1,83 @@
+{
+    "fields" : [
+        {
+            "name" : "Winner Name",
+            "type" : "str",
+            "description" : "Name of the winning player"
+        },
+        {
+            "name" : "Loser Name",
+            "type" : "str",
+            "description" : "Name of the losing player"
+        },
+        {
+            "name" : "Winner Score",
+            "type" : "int",
+            "description" : "Goals scored by the winning player",
+            "constraints" : [
+                {
+                    "type" : "bounded",
+                    "min" : 10,
+                    "max" : 10
+                }
+            ]
+        },
+        {
+            "name" : "Loser Score",
+            "type" : "int",
+            "description" : "Goals scored by the losing player",
+            "constraints" : [
+                {
+                    "type" : "bounded",
+                    "min" : 0,
+                    "max" : 9
+                }
+            ]
+        },
+        {
+            "name" : "Winner Color",
+            "type" : "str",
+            "description" : "Color used by the winning player",
+            "constraints" : [
+                {
+                    "type" : "choices",
+                    "choices" : ["B", "W"]
+                }
+            ]
+        },
+        {
+            "name" : "Date",
+            "type" : "date",
+            "description" : "Date of match"
+        },
+        {
+            "name" : "Number",
+            "type" : "int",
+            "description" : "Match id/ order",
+            "constraints" : [
+                {
+                    "type" : "bounded",
+                    "min" : 0
+                }
+            ]
+        }
+    ],
+    "data_constraints" : [
+        {
+            "type" : "greater",
+            "greater" : "Winner Score",
+            "lesser" : "Loser Score"
+        },
+        {
+            "type" : "inequality",
+            "fields" : ["Winner Name", "Loser Name"]
+        }
+    ],
+    "series_constraints" : [
+        {
+            "type" : "order",
+            "first_order" : "Number",
+            "second_order" : "Date"
+        }
+    ]
+}
