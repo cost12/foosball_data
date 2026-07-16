@@ -3,8 +3,6 @@ from logging.config import dictConfig
 from pathlib import Path
 import json
 
-import pydantic
-
 dictConfig({
     "version": 1,
     "formatters": {
