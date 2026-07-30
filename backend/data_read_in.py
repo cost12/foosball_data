@@ -30,21 +30,22 @@ def read_in_dates_from_csv(filename=DATE_FILENAME):
     date_df = clean_date_df(date_df)
     return read_df_to_dates(date_df)
 
-def read_in_games_from_sheets(sheets, sheet_name, copy_to_csv=False,filename=GAME_FILENAME):
-    url = f'https://docs.google.com/spreadsheets/d/{sheets}/gviz/tq?tqx=out:csv&sheet={sheet_name}'
+def read_in_games_from_sheets(sheet: utils.SheetIdentifier, copy_to_csv=False):
+    url = f'https://docs.google.com/spreadsheets/d/{sheet.sheet_id}/gviz/tq?tqx=out:csv&sheet={sheet.sheet_name}'
     game_df = pd.read_csv(url)
     logger.debug("%s game size loaded", game_df.shape)
-    game_df = clean_game_df(game_df)
-    logger.debug("%s cleaned game size", game_df.shape)
-    games = read_df_to_games(game_df)
-    logger.debug("%s games loaded", len(games))
+    #game_df = clean_game_df(game_df)
+    #logger.debug("%s cleaned game size", game_df.shape)
+    #games = read_df_to_games(game_df)
+    #logger.debug("%s games loaded", len(games))
 
     if copy_to_csv:
-        game_df.to_csv(filename,index=False)
-    return games
+        game_df.to_csv(sheet.csv_name, index=False)
+    return game_df
 
 def read_in_games_from_csv(filename=GAME_FILENAME):
     game_df = pd.read_csv(filename)
+    return game_df
     game_df = clean_game_df(game_df)
     return read_df_to_games(game_df)
 

@@ -1,15 +1,20 @@
 import dataclasses
-from typing import Type, Annotated, Literal
+from typing import IO, Type, Annotated, Literal, Iterable, TypeVar, Mapping
 from enum import Enum, auto
 import datetime
 import logging
+from pathlib import Path
+
+from frozendict import frozendict
 
 import pydantic
 import polars as pl
 
-from .data_constraints import SeriesConstraint, DataConstraint, ValueConstraint
+from .data_constraints import DataConstraint, FieldConstraint, SeriesConstraint, InvalidRows
 
 logger = logging.getLogger(__name__)
+
+T = TypeVar("T", pl.DataFrame, pl.LazyFrame)
 
 GAME_FIELDS = {
     "Winner",
@@ -74,11 +79,11 @@ MATCHUP_FIELDS = {
 }
 
 _TYPE_MAP : dict[str, Type] = {
-    "int": int,
-    "float": float,
-    "str": str,
-    "bool": bool,
-    "date": datetime.date,
+    "int": pl.Int64,
+    "float": pl.Float64,
+    "str": pl.String,
+    "bool": pl.Boolean,
+    "date": pl.Date,
 }
 
 PlayerId = str
@@ -139,22 +144,26 @@ FieldCalculation = Annotated[
     pydantic.Field(discriminator="type")
 ]
 
+class DateFieldConversion(pydantic.BaseModel):
+    type : Literal["date"]
+    format : str
+
+    def convert_field(self, data: pl.LazyFrame, field: str) -> pl.LazyFrame:
+        return data.with_columns(pl.col(field).str.strptime(pl.Date, self.format, strict=False))
+
+FieldConversion = Annotated[
+    DateFieldConversion,
+    pydantic.Field(discriminator="type")
+]
+
 class DataField(pydantic.BaseModel):
     name : str
-    type : Type
+    input_type : str
+    #store_type : str
     description : str = ""
-    constraints : tuple[ValueConstraint,...] = pydantic.Field(default_factory=tuple)
+    constraints : tuple[FieldConstraint,...] = pydantic.Field(default_factory=tuple)
     calculation : FieldCalculation|None = None
-
-    @pydantic.field_validator("type", mode="before")
-    @classmethod
-    def parse_type(cls, v):
-        if isinstance(v, str):
-            try:
-                return _TYPE_MAP[v]
-            except KeyError as exc:
-                raise ValueError(f"Unknown type: {v}") from exc
-        return v
+    conversion : FieldConversion|None = None
 
     @property
     def is_calculated(self):
@@ -165,6 +174,67 @@ class DataSpecification(pydantic.BaseModel):
     data_constraints : tuple[DataConstraint,...]
     series_constraints : tuple[SeriesConstraint,...]
 
+    def check_data(self, data: T) -> tuple[T, list[InvalidRows]]:
+        return check_data(
+            data,
+            field_constraints={field.name: field.constraints for field in self.fields if not field.is_calculated},
+            data_constraints=self.data_constraints,
+            series_constraints=self.series_constraints,
+        )
+
+def read_in_data(source: str | Path | IO[str] | IO[bytes] | bytes, fields: Iterable[DataField]) -> pl.DataFrame:
+    data = pl.read_csv(source, schema_overrides={field.name: _TYPE_MAP[field.input_type] for field in fields if not field.is_calculated}).lazy()
+    for field in fields:
+        if not field.is_calculated and field.conversion is not None:
+            data = field.conversion.convert_field(data, field.name)
+    data = data.select([field.name for field in fields if not field.is_calculated])
+    return data.collect()
+
+def check_data(
+        data: T,
+        *,
+        field_constraints: Mapping[str,Iterable[FieldConstraint]] = frozendict(),
+        data_constraints: Iterable[DataConstraint] = tuple(),
+        series_constraints: Iterable[SeriesConstraint] = tuple(),
+    ) -> tuple[T, list[InvalidRows]]:
+    invalid : list[InvalidRows] = []
+
+    for field, constraints in field_constraints.items():
+        for constraint in constraints:
+            invalid.append(
+                InvalidRows(
+                    data.filter(constraint.constraint_context.filter(field)),
+                    constraint.error_string(field),
+                    constraint.handling_context,
+                )
+            )
+            if constraint.handling_context.remove:
+                data = data.filter(~constraint.constraint_context.filter(field))
+
+    for constraint in data_constraints:
+        invalid.append(
+            InvalidRows(
+                data.filter(constraint.constraint_context.filter()),
+                constraint.error_string(),
+                constraint.handling_context,
+            )
+        )
+        if constraint.handling_context.remove:
+            data = data.filter(~constraint.constraint_context.filter())
+
+    for constraint in series_constraints:
+        invalid.append(
+            InvalidRows(
+                constraint.constraint_context.filter(data),
+                constraint.error_string(),
+                constraint.handling_context,
+            )
+        )
+        if constraint.handling_context.remove:
+            data = data.join(constraint.constraint_context.filter(data), on=data.columns, how='anit')
+
+    return data, invalid
+
 @dataclasses.dataclass(frozen=True)
 class ValidatedData:
     raw_data : pl.DataFrame
@@ -174,7 +244,7 @@ class ValidatedData:
 @dataclasses.dataclass(frozen=True)
 class InputData:
     raw_data : pl.DataFrame
-    fields : tuple[DataField,...]
+    specification : DataSpecification
 
     def get_data(self) -> ValidatedData:
         ...

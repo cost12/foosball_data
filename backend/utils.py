@@ -1,15 +1,17 @@
+import dataclasses
+
 import backend.foosballgame as foosballgame
 
+@dataclasses.dataclass(frozen=True)
 class SheetIdentifier:
+    name : str
+    sheet_id : str
+    sheet_name : str
+    csv_name : str
 
-    def __init__(self, name, sheet_id, sheet, csv = None) -> None:
-        self.name = name          # readable name
-        self.id = sheet_id        # id of shared sheet
-        self.sheet_name = sheet   # name of sheet within the google sheets doc
-        self.csv_name = csv       # name of the csv associated with the google sheets
-
-        # name should be unique for all
-        # csv_name should be unique for all
+    @property
+    def url(self) -> str:
+        return f'https://docs.google.com/spreadsheets/d/{self.sheet_id}/gviz/tq?tqx=out:csv&sheet={self.sheet_name}'
 
 
 class Tracker(dict):

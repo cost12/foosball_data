@@ -2,82 +2,141 @@
     "fields" : [
         {
             "name" : "Winner Name",
-            "type" : "str",
-            "description" : "Name of the winning player"
+            "input_type" : "str",
+            "description" : "Name of the winning player",
+            "constraints" : [
+                {
+                    "constraint_context" : {
+                        "type": "populated"
+                    },
+                    "handling_context" : {
+                        "remove" : true
+                    }
+                },
+                {
+                    "constraint_context" : {
+                        "type": "non_empty"
+                    },
+                    "handling_context" : {
+                        "remove" : true
+                    }
+                }
+            ]
         },
         {
             "name" : "Loser Name",
-            "type" : "str",
-            "description" : "Name of the losing player"
+            "input_type" : "str",
+            "description" : "Name of the losing player",
+            "constraints" : [
+                {
+                    "constraint_context" : {
+                        "type": "populated"
+                    },
+                    "handling_context" : {
+                        "remove" : true
+                    }
+                },
+                {
+                    "constraint_context" : {
+                        "type": "non_empty"
+                    },
+                    "handling_context" : {
+                        "remove" : true
+                    }
+                }
+            ]
         },
         {
             "name" : "Winner Score",
-            "type" : "int",
+            "input_type" : "int",
             "description" : "Goals scored by the winning player",
             "constraints" : [
                 {
-                    "type" : "bounded",
-                    "min" : 10,
-                    "max" : 10
+                    "constraint_context" : {
+                        "type" : "bounded",
+                        "min" : 10,
+                        "max" : 10
+                    }
                 }
             ]
         },
         {
             "name" : "Loser Score",
-            "type" : "int",
+            "input_type" : "int",
             "description" : "Goals scored by the losing player",
             "constraints" : [
                 {
-                    "type" : "bounded",
-                    "min" : 0,
-                    "max" : 9
+                    "constraint_context" : {
+                        "type" : "bounded",
+                        "min" : 0,
+                        "max" : 9
+                    }
                 }
             ]
         },
         {
             "name" : "Winner Color",
-            "type" : "str",
+            "input_type" : "str",
             "description" : "Color used by the winning player",
             "constraints" : [
                 {
-                    "type" : "choices",
-                    "choices" : ["B", "W"]
+                    "constraint_context" : {
+                        "type" : "choices",
+                        "choices" : ["B", "W"]
+                    }
                 }
             ]
         },
         {
             "name" : "Date",
-            "type" : "date",
-            "description" : "Date of match"
+            "input_type" : "str",
+            "description" : "Date of match",
+            "conversion" : {
+                "type" : "date",
+                "format" : "%m/%d/%Y"
+            }
         },
         {
             "name" : "Number",
-            "type" : "int",
+            "input_type" : "int",
             "description" : "Match id/ order",
             "constraints" : [
                 {
-                    "type" : "bounded",
-                    "min" : 0
+                    "constraint_context" : {
+                        "type" : "unique"
+                    }
+                },
+                {
+                    "constraint_context" : {
+                        "type" : "bounded",
+                        "min" : 0
+                    }
                 }
             ]
         }
     ],
     "data_constraints" : [
         {
-            "type" : "greater",
-            "greater" : "Winner Score",
-            "lesser" : "Loser Score"
+            "constraint_context" : {
+                "type" : "greater",
+                "greater" : "Winner Score",
+                "lesser" : "Loser Score"
+            }
         },
         {
-            "type" : "inequality",
-            "fields" : ["Winner Name", "Loser Name"]
+            "constraint_context" : {
+                "type" : "inequality",
+                "fields" : ["Winner Name", "Loser Name"]
+            }
         }
     ],
     "series_constraints" : [
         {
-            "type" : "order",
-            "first_order" : "Number",
-            "second_order" : "Date"
+            "constraint_context" : {
+                "type" : "order",
+                "first_order" : "Number",
+                "second_order" : "Date"
+            }
         }
     ]
 }

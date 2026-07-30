@@ -37,10 +37,10 @@ dictConfig({
     }
 })
 
-logger = logging.getLogger(__name__)
-
 from frontend.views import visualize_foosball
-from backend import data_models
+from backend import data_models, data_read_in
+
+logger = logging.getLogger(__name__)
 
 def main() -> None:
     visualize_foosball()
@@ -51,8 +51,18 @@ def test():
     with (DATA / "models/input.json").open('r', encoding='utf-8') as f:
         data_spec_raw = json.load(f)
 
-    data_spec = data_models.DataSpecification.model_validate(data_spec_raw)
-    logger.debug(data_spec)
+    game_spec = data_models.DataSpecification.model_validate(data_spec_raw)
+
+    game_options = data_read_in.read_in_games_options()
+    try:
+        games = data_models.read_in_data(game_options[0].url, game_spec.fields)
+    except:
+        games = data_read_in.read_in_games_from_csv()
+    logger.info("Initial shape: %s", games.shape)
+    games, invalid = game_spec.check_data(games)
+    for i in invalid:
+        logger.info(i.get_message())
+    logger.info("Final shape: %s", games.shape)
 
 if __name__ == "__main__":
     #main()
